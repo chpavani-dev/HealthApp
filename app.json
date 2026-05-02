@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "HealthApp",
+    "slug": "HealthApp",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0B8FAC"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.anonymous.HealthApp"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "a30dac87-7d2d-4391-8162-90232a1815ea"
+      }
+    }
+  }
+}
