@@ -17,7 +17,7 @@ const DARK    = '#111827';
 const BG      = '#F5F7FA';
 
 const GOOGLE_VISION_API_KEY = 'AIzaSyDjS8w_l5XEgy6slSOmVxXwzZ14PjDcWbI';
-const AI_SERVICE_URL        = 'http://192.168.1.54:8000';
+const AI_SERVICE_URL = 'https://medrecord-ai-production.up.railway.app';
 const USE_AI_SERVICE        = true;
 
 const INDIAN_DRUGS = [
