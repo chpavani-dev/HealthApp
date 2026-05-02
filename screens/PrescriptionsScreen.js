@@ -440,7 +440,7 @@ function AddRxModal({ visible, onClose, onSaveMultiple, memberId }) {
     onSaveMultiple(newRx);
     handleClose();
   }
-  }
+  
 
   function handleManualSave() {
     if (!drug.trim() || !dose.trim()) { Alert.alert('Missing info', 'Please enter drug name and dosage.'); return; }
