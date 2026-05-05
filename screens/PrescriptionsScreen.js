@@ -311,10 +311,10 @@ function AddRxModal({ visible, onClose, onSaveMultiple, memberId }) {
          if (aiResult.success && aiResult.drugs?.length > 0) {
             // Skip review modal — directly save with type field intact
             const newRx = aiResult.drugs.map(d => {
-              const drugType = d.type || 'outpatient';
+            const drugType = d.type || 'outpatient';
               return {
                 id:          Date.now().toString() + Math.random() + d.drug_name,
-                drug:        d.drug_name || 'Unknown',
+              drug:        d.drug_name || 'Unknown',
                 dose:        d.dosage || 'See prescription',
                 freq:        d.frequency || 'OD',
                 freqLabel:   d.freq_label || getFreqLabel(d.frequency || 'OD'),

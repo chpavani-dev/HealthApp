@@ -8,10 +8,74 @@ import { getReports, getPrescriptions } from '../storage';
 const TEAL    = '#0B8FAC';
 const TEAL_LT = '#E8F7FA';
 const GREEN   = '#0D9E6E';
+const GREEN_LT= '#DCFCE7';
 const ORANGE  = '#F59E0B';
+const PURPLE  = '#7C3AED';
+const PURPLE_LT='#F3E8FF';
+const BLUE    = '#3B82F6';
+const BLUE_LT = '#DBEAFE';
+const PEACH_LT= '#FED7AA';
 const GRAY    = '#6B7280';
 const DARK    = '#111827';
 const BG      = '#F5F7FA';
+
+// ── Pro Tips by Age ──────────────────────────────────────────────────
+// Multiple tips per age band — we rotate through them based on day-of-month
+// so the user sees something fresh on different days but consistent on a single day.
+const PRO_TIPS = {
+  pediatric: [
+    'Vaccination records and growth charts are key during the early years — keep all checkup notes in one place.',
+    'Annual height and weight tracking helps doctors spot growth patterns. Upload pediatrician reports as you get them.',
+    'Childhood immunization schedules vary by age. Saving each vaccination record makes future doctor visits easier.',
+  ],
+  young: [
+    'Get a baseline cholesterol and blood sugar check by 30 — earlier if heart disease runs in the family.',
+    'Even if you feel fine, an annual full-body checkup catches small issues before they grow.',
+    'Daily steps, sleep hours, and BP readings are great to track at this age — your future self will thank you.',
+  ],
+  middleEarly: [
+    'An annual full-body checkup is a smart habit before any chronic conditions might appear.',
+    'Track HbA1c yearly — even mild changes can be the earliest sign of pre-diabetes.',
+    'A lipid panel every year helps you stay ahead of cholesterol issues. Upload yours when you get one.',
+  ],
+  middleLate: [
+    'After 50, a yearly bone density check helps catch osteoporosis early. Worth asking your doctor about.',
+    'BP at home weekly, fasting sugar quarterly — small habits that pay off in this decade.',
+    'Vitamin D and B12 deficiencies are common at this age. Annual checks can prevent fatigue and bone problems.',
+  ],
+  senior: [
+    'Track BP weekly — even small changes matter at this age. Keeping a record helps your doctor decide on dosage.',
+    'Annual eye and hearing checks make a real difference in quality of life. Save those reports too.',
+    'Bring your full medication list to every doctor visit. The app makes this easy — just open “My Meds”.',
+  ],
+};
+
+function getProTip(age) {
+  const numAge = parseInt(age) || 35;
+  let band;
+  if (numAge < 18)      band = 'pediatric';
+  else if (numAge < 30) band = 'young';
+  else if (numAge < 45) band = 'middleEarly';
+  else if (numAge < 60) band = 'middleLate';
+  else                  band = 'senior';
+  const tips = PRO_TIPS[band];
+  // Rotate tip based on date — same tip all day, refreshes daily
+  const dayOfMonth = new Date().getDate();
+  return tips[dayOfMonth % tips.length];
+}
+
+function getGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 12)  return 'Good morning';
+  if (hour < 17)  return 'Good afternoon';
+  return 'Good evening';
+}
+
+function todayLong() {
+  return new Date().toLocaleDateString('en-IN', {
+    weekday: 'long', day: 'numeric', month: 'long',
+  });
+}
 
 function MemberDropdown({ members, activeMember, onSwitch, visible, onClose }) {
   return (
@@ -44,16 +108,35 @@ function MemberDropdown({ members, activeMember, onSwitch, visible, onClose }) {
   );
 }
 
+// ── Med row in the home list ────────────────────────────────────────
+function HomeMedRow({ rx }) {
+  return (
+    <View style={s.medRow}>
+      <View style={s.medIconBox}>
+        <Text style={s.medEmoji}>💊</Text>
+      </View>
+      <View style={s.medInfo}>
+        <Text style={s.medName} numberOfLines={1}>{rx.drug}{rx.dose ? ` ${rx.dose}` : ''}</Text>
+        {rx.times && rx.times.length > 0 && (
+          <Text style={s.medTimes} numberOfLines={1}>{rx.times.join(', ')}</Text>
+        )}
+      </View>
+      <View style={s.medFreq}>
+        <Text style={s.medFreqText}>{rx.freqLabel || rx.freq || 'Daily'}</Text>
+      </View>
+    </View>
+  );
+}
+
 export default function HomeScreen({
   navigation, members, activeMember,
   onSwitchMember, onLogout, onUpdateMembers
 }) {
-  const [showDropdown,     setShowDropdown]     = useState(false);
-  const [showFamilyMgr,    setShowFamilyMgr]    = useState(false);
-  const [showAddMember,    setShowAddMember]    = useState(false);
-  const [reportCount,      setReportCount]      = useState(0);
-  const [medicineCount,    setMedicineCount]    = useState(0);
-  const [refillCount,      setRefillCount]      = useState(0);
+  const [showDropdown,   setShowDropdown]   = useState(false);
+  const [showFamilyMgr,  setShowFamilyMgr]  = useState(false);
+  const [showAddMember,  setShowAddMember]  = useState(false);
+  const [activeMeds,     setActiveMeds]     = useState([]);
+  const [activeMedCount, setActiveMedCount] = useState(0);
 
   // Add member form state
   const [newName,     setNewName]     = useState('');
@@ -62,19 +145,19 @@ export default function HomeScreen({
   const [newLocation, setNewLocation] = useState('');
   const [newRelation, setNewRelation] = useState('Spouse');
 
-  useEffect(() => { loadCounts(); }, [activeMember]);
+  useEffect(() => { loadHomeData(); }, [activeMember]);
 
-  async function loadCounts() {
+  async function loadHomeData() {
     try {
       const memberId = activeMember?.id || 'default';
-      const reports  = await getReports(memberId);
       const rxList   = await getPrescriptions(memberId);
-      const active   = rxList.filter(r => r.active);
-      const refills  = active.filter(r => r.daysLeft <= 7);
-      setReportCount(reports.length);
-      setMedicineCount(active.length);
-      setRefillCount(refills.length);
-    } catch(e) { console.log('loadCounts error:', e); }
+      const active   = rxList.filter(r =>
+        (r.type === 'discharge' || r.type === 'outpatient' || !r.type) && r.active !== false
+      );
+      // Show top 3 most recently added active meds on home
+      setActiveMeds(active.slice(0, 3));
+      setActiveMedCount(active.length);
+    } catch(e) { console.log('loadHomeData error:', e); }
   }
 
   async function handleAddMember() {
@@ -96,133 +179,92 @@ export default function HomeScreen({
     Alert.alert('✅ Added', `${newMember.name} has been added to your family profiles.`);
   }
 
+  const greeting     = getGreeting();
+  const firstName    = activeMember?.name?.split(' ')[0] || 'there';
+  const proTip       = getProTip(activeMember?.age);
+
+  // Quick action cards — keep the 4 the user asked for
+  const QUICK_ACTIONS = [
+    { emoji: '📤', title: 'Upload',  subtitle: 'Report or Rx',     bg: BLUE_LT,   action: () => navigation.navigate('Reports') },
+    { emoji: '💊', title: 'My Meds', subtitle: `${activeMedCount} active`,   bg: GREEN_LT,  action: () => navigation.navigate('Prescriptions') },
+    { emoji: '📈', title: 'Trends',  subtitle: 'Health timeline',   bg: PURPLE_LT, action: () => navigation.navigate('Timeline') },
+    { emoji: '👨‍👩‍👧', title: 'Family', subtitle: `${members.length} profile${members.length !== 1 ? 's' : ''}`, bg: PEACH_LT, action: () => setShowFamilyMgr(true) },
+  ];
+
   return (
     <SafeAreaView style={s.safe}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
 
-        {/* ── Top bar ── */}
+        {/* ── Top bar: subtle profile chip + logout text ── */}
         <View style={s.topBar}>
-          <TouchableOpacity style={s.memberSwitch} onPress={() => setShowDropdown(true)} activeOpacity={0.8}>
-            <View style={s.memberSwitchAvatar}>
-              <Text style={s.memberSwitchAvatarText}>
+          <TouchableOpacity style={s.profileChip} onPress={() => setShowDropdown(true)} activeOpacity={0.7}>
+            <View style={s.profileChipAvatar}>
+              <Text style={s.profileChipAvatarText}>
                 {activeMember?.name?.charAt(0).toUpperCase() || 'M'}
               </Text>
             </View>
             <View>
-              <Text style={s.memberSwitchName}>{activeMember?.name || 'My Profile'}</Text>
-              <Text style={s.memberSwitchSub}>{activeMember?.relation}  ·  {activeMember?.location} ▾</Text>
+              <Text style={s.profileChipLabel}>Profile</Text>
+              <Text style={s.profileChipName}>
+                {activeMember?.name?.split(' ')[0]}
+                {activeMember?.relation ? ` · ${activeMember.relation}` : ''}
+                <Text style={s.profileChipChevron}>  ▾</Text>
+              </Text>
             </View>
           </TouchableOpacity>
-          <TouchableOpacity style={s.logoutBtn} onPress={onLogout}>
-            <Text style={s.logoutText}>⎋ Logout</Text>
+          <TouchableOpacity onPress={onLogout}>
+            <Text style={s.logoutText}>Logout</Text>
           </TouchableOpacity>
         </View>
 
-        {/* ── Refill alert ── */}
-        {refillCount > 0 && (
-          <TouchableOpacity style={s.alertBanner} onPress={() => navigation.navigate('Prescriptions')} activeOpacity={0.8}>
-            <View style={s.alertDot} />
-            <Text style={s.alertText}>{refillCount} medication{refillCount > 1 ? 's' : ''} need refill soon</Text>
-            <Text style={s.alertAction}>View →</Text>
-          </TouchableOpacity>
-        )}
+        {/* ── Greeting ── */}
+        <Text style={s.greeting}>{greeting}, {firstName} 👋</Text>
+        <Text style={s.todayDate}>{todayLong()}</Text>
 
-        {/* ── Stats ── */}
-        <Text style={s.sectionTitle}>Overview</Text>
-        <View style={s.statsRow}>
-          <TouchableOpacity
-            style={[s.statCard, { borderTopColor: TEAL }]}
-            onPress={() => navigation.navigate('Reports')}
-            activeOpacity={0.8}
-          >
-            <Text style={s.statEmoji}>📋</Text>
-            <Text style={[s.statValue, { color: TEAL }]}>{reportCount}</Text>
-            <Text style={s.statLabel}>Lab Reports</Text>
-            <Text style={s.statHint}>Tap to view →</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[s.statCard, { borderTopColor: GREEN }]}
-            onPress={() => navigation.navigate('Prescriptions')}
-            activeOpacity={0.8}
-          >
-            <Text style={s.statEmoji}>💊</Text>
-            <Text style={[s.statValue, { color: GREEN }]}>{medicineCount}</Text>
-            <Text style={s.statLabel}>Active Medicines</Text>
-            <Text style={s.statHint}>Tap to view →</Text>
-          </TouchableOpacity>
+        {/* ── Pro Tip (age-aware) ── */}
+        <View style={s.tipCard}>
+          <Text style={s.tipEmoji}>💡</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={s.tipLabel}>Tip for you</Text>
+            <Text style={s.tipText}>{proTip}</Text>
+          </View>
         </View>
 
         {/* ── Quick Actions ── */}
-        <Text style={s.sectionTitle}>Quick Actions</Text>
+        <Text style={s.sectionLabel}>Quick actions</Text>
         <View style={s.actionsGrid}>
-          {[
-            { emoji: '📤', label: 'Upload\nReport',    color: TEAL,      action: () => navigation.navigate('Reports') },
-            { emoji: '✍️', label: 'Add\nPrescription', color: GREEN,     action: () => navigation.navigate('Prescriptions') },
-            { emoji: '📈', label: 'Health\nTimeline',  color: '#7C3AED', action: () => navigation.navigate('Timeline') },
-            { emoji: '👨‍👩‍👧', label: 'Family\nProfiles', color: ORANGE,    action: () => setShowFamilyMgr(true) },
-          ].map((a, i) => (
+          {QUICK_ACTIONS.map((a, i) => (
             <TouchableOpacity key={i} style={s.actionCard} onPress={a.action} activeOpacity={0.8}>
-              <View style={[s.actionIcon, { backgroundColor: a.color + '18' }]}>
+              <View style={[s.actionIcon, { backgroundColor: a.bg }]}>
                 <Text style={s.actionEmoji}>{a.emoji}</Text>
               </View>
-              <Text style={s.actionLabel}>{a.label}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={s.actionTitle}>{a.title}</Text>
+                <Text style={s.actionSubtitle}>{a.subtitle}</Text>
+              </View>
             </TouchableOpacity>
           ))}
         </View>
 
-        {/* ── Current Profile ── */}
-        <Text style={s.sectionTitle}>Current Profile</Text>
-        <View style={s.profileCard}>
-          <View style={s.profileAvatar}>
-            <Text style={s.profileAvatarText}>
-              {activeMember?.name?.charAt(0).toUpperCase() || 'M'}
-            </Text>
-          </View>
-          <View style={s.profileInfo}>
-            <Text style={s.profileName}>{activeMember?.name}</Text>
-            <Text style={s.profileDetail}>{activeMember?.gender}  ·  {activeMember?.age} years old</Text>
-            <Text style={s.profileDetail}>📍 {activeMember?.location}</Text>
-            <Text style={s.profileDetail}>👥 {activeMember?.relation}</Text>
-          </View>
-          <TouchableOpacity style={s.switchBtn} onPress={() => setShowDropdown(true)}>
-            <Text style={s.switchBtnText}>Switch</Text>
+        {/* ── My Medications ── */}
+        <View style={s.medsHeader}>
+          <Text style={s.sectionLabel}>My Medications</Text>
+          {activeMedCount > 0 && (
+            <TouchableOpacity onPress={() => navigation.navigate('Prescriptions')}>
+              <Text style={s.seeAll}>See all ›</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {activeMeds.length === 0 ? (
+          <TouchableOpacity style={s.medsEmpty} onPress={() => navigation.navigate('Prescriptions')} activeOpacity={0.7}>
+            <Text style={s.medsEmptyEmoji}>💊</Text>
+            <Text style={s.medsEmptyTitle}>No medications yet</Text>
+            <Text style={s.medsEmptyText}>Tap to add your first prescription</Text>
           </TouchableOpacity>
-        </View>
-
-        {/* ── Family strip ── */}
-        {members.length > 1 && (
-          <>
-            <Text style={s.sectionTitle}>Family Members</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.familyStrip} contentContainerStyle={{ paddingHorizontal: 2, gap: 12 }}>
-              {members.map(m => (
-                <TouchableOpacity key={m.id} style={s.familyChip} onPress={() => onSwitchMember(m)} activeOpacity={0.8}>
-                  <View style={[s.familyAvatar, { backgroundColor: activeMember?.id === m.id ? TEAL : '#E5E7EB' }]}>
-                    <Text style={[s.familyAvatarText, { color: activeMember?.id === m.id ? '#FFF' : GRAY }]}>
-                      {m.name.charAt(0).toUpperCase()}
-                    </Text>
-                  </View>
-                  <Text style={[s.familyName, activeMember?.id === m.id && { color: TEAL }]}>{m.name.split(' ')[0]}</Text>
-                  <Text style={s.familyRelation}>{m.relation}</Text>
-                </TouchableOpacity>
-              ))}
-              <TouchableOpacity style={s.addFamilyChip} onPress={() => setShowFamilyMgr(true)} activeOpacity={0.8}>
-                <View style={s.addFamilyCircle}>
-                  <Text style={s.addFamilyIcon}>➕</Text>
-                </View>
-                <Text style={s.addFamilyText}>Add</Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </>
+        ) : (
+          activeMeds.map(rx => <HomeMedRow key={rx.id} rx={rx} />)
         )}
-
-        {/* ── Health tip ── */}
-        <View style={s.tipCard}>
-          <Text style={s.tipEmoji}>💡</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={s.tipTitle}>Health Tip</Text>
-            <Text style={s.tipText}>Keep all your lab reports in one place for faster doctor consultations and better health tracking.</Text>
-          </View>
-        </View>
 
         <View style={{ height: 90 }} />
       </ScrollView>
@@ -344,56 +386,61 @@ export default function HomeScreen({
 const s = StyleSheet.create({
   safe:                   { flex: 1, backgroundColor: BG },
   scroll:                 { paddingHorizontal: 20 },
-  topBar:                 { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 20, paddingBottom: 16 },
-  memberSwitch:           { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
-  memberSwitchAvatar:     { width: 44, height: 44, borderRadius: 14, backgroundColor: TEAL, alignItems: 'center', justifyContent: 'center', elevation: 3, shadowColor: TEAL, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4 },
-  memberSwitchAvatarText: { color: '#FFF', fontWeight: '800', fontSize: 18 },
-  memberSwitchName:       { fontSize: 16, fontWeight: '800', color: DARK },
-  memberSwitchSub:        { fontSize: 12, color: GRAY, marginTop: 1 },
-  logoutBtn:              { backgroundColor: '#FEF2F2', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
-  logoutText:             { fontSize: 12, color: '#EF4444', fontWeight: '600' },
-  alertBanner:            { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFBEB', borderRadius: 12, padding: 12, marginBottom: 20, gap: 8, borderWidth: 1, borderColor: '#FDE68A' },
-  alertDot:               { width: 8, height: 8, borderRadius: 4, backgroundColor: ORANGE },
-  alertText:              { flex: 1, fontSize: 13, color: '#92400E', fontWeight: '500' },
-  alertAction:            { fontSize: 13, color: ORANGE, fontWeight: '700' },
-  sectionTitle:           { fontSize: 16, fontWeight: '700', color: DARK, marginBottom: 12 },
-  statsRow:               { flexDirection: 'row', gap: 12, marginBottom: 24 },
-  statCard:               { flex: 1, backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, borderTopWidth: 3, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 6, alignItems: 'center' },
-  statEmoji:              { fontSize: 28, marginBottom: 8 },
-  statValue:              { fontSize: 32, fontWeight: '800' },
-  statLabel:              { fontSize: 12, color: GRAY, marginTop: 4, textAlign: 'center', fontWeight: '500' },
-  statHint:               { fontSize: 11, color: TEAL, marginTop: 6, fontWeight: '600' },
-  actionsGrid:            { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 },
-  actionCard:             { width: '47%', backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, alignItems: 'center', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 6 },
-  actionIcon:             { width: 52, height: 52, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
-  actionEmoji:            { fontSize: 24 },
-  actionLabel:            { fontSize: 12, fontWeight: '600', color: DARK, textAlign: 'center', lineHeight: 17 },
-  profileCard:            { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, marginBottom: 24, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 6, gap: 14 },
-  profileAvatar:          { width: 56, height: 56, borderRadius: 16, backgroundColor: TEAL, alignItems: 'center', justifyContent: 'center' },
-  profileAvatarText:      { color: '#FFF', fontWeight: '800', fontSize: 24 },
-  profileInfo:            { flex: 1 },
-  profileName:            { fontSize: 16, fontWeight: '800', color: DARK, marginBottom: 4 },
-  profileDetail:          { fontSize: 12, color: GRAY, marginTop: 2 },
-  switchBtn:              { backgroundColor: TEAL_LT, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
-  switchBtnText:          { fontSize: 13, color: TEAL, fontWeight: '700' },
-  familyStrip:            { marginBottom: 24 },
-  familyChip:             { alignItems: 'center', width: 72 },
-  familyAvatar:           { width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
-  familyAvatarText:       { fontSize: 20, fontWeight: '800' },
-  familyName:             { fontSize: 12, fontWeight: '600', color: DARK, textAlign: 'center' },
-  familyRelation:         { fontSize: 10, color: GRAY, textAlign: 'center', marginTop: 1 },
-  addFamilyChip:          { alignItems: 'center', width: 72 },
-  addFamilyCircle:        { width: 52, height: 52, borderRadius: 16, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
-  addFamilyIcon:          { fontSize: 22 },
-  addFamilyText:          { fontSize: 12, color: GRAY, fontWeight: '500' },
-  tipCard:                { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#EFF6FF', borderRadius: 16, padding: 16, gap: 12 },
-  tipEmoji:               { fontSize: 22, marginTop: 2 },
-  tipTitle:               { fontSize: 13, fontWeight: '700', color: '#1E40AF', marginBottom: 4 },
-  tipText:                { fontSize: 13, color: '#3B82F6', lineHeight: 19 },
+
+  // Top bar
+  topBar:                 { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 16, paddingBottom: 12 },
+  profileChip:            { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  profileChipAvatar:      { width: 32, height: 32, borderRadius: 16, backgroundColor: TEAL_LT, alignItems: 'center', justifyContent: 'center' },
+  profileChipAvatarText:  { color: TEAL, fontWeight: '700', fontSize: 14 },
+  profileChipLabel:       { fontSize: 10, color: GRAY, marginBottom: 1 },
+  profileChipName:        { fontSize: 13, fontWeight: '600', color: DARK },
+  profileChipChevron:     { fontSize: 10, color: GRAY },
+  logoutText:             { fontSize: 13, color: GRAY, fontWeight: '500' },
+
+  // Greeting
+  greeting:               { fontSize: 24, fontWeight: '700', color: DARK, marginTop: 4, marginBottom: 4 },
+  todayDate:              { fontSize: 13, color: GRAY, marginBottom: 18 },
+
+  // Pro Tip
+  tipCard:                { flexDirection: 'row', backgroundColor: '#FEF7E6', borderRadius: 14, padding: 14, gap: 10, marginBottom: 22, borderWidth: 1, borderColor: '#FCE5A6' },
+  tipEmoji:               { fontSize: 22, marginTop: 1 },
+  tipLabel:               { fontSize: 11, color: '#92400E', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.4, fontWeight: '700' },
+  tipText:                { fontSize: 13, color: '#78350F', lineHeight: 19 },
+
+  // Section labels
+  sectionLabel:           { fontSize: 11, color: GRAY, marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.4, fontWeight: '700' },
+
+  // Quick Actions grid (4 cards, 2x2)
+  actionsGrid:            { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 },
+  actionCard:             { width: '48%', backgroundColor: '#FFFFFF', borderRadius: 14, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 10, elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4 },
+  actionIcon:             { width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  actionEmoji:            { fontSize: 18 },
+  actionTitle:            { fontSize: 13, fontWeight: '700', color: DARK },
+  actionSubtitle:         { fontSize: 10, color: GRAY, marginTop: 1 },
+
+  // Medications header row
+  medsHeader:             { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 },
+  seeAll:                 { fontSize: 12, color: TEAL, fontWeight: '600' },
+
+  // Med row
+  medRow:                 { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 12, padding: 12, marginBottom: 6, gap: 10, elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4 },
+  medIconBox:             { width: 36, height: 36, borderRadius: 10, backgroundColor: GREEN_LT, alignItems: 'center', justifyContent: 'center' },
+  medEmoji:               { fontSize: 18 },
+  medInfo:                { flex: 1 },
+  medName:                { fontSize: 13, fontWeight: '600', color: DARK },
+  medTimes:               { fontSize: 11, color: GRAY, marginTop: 2 },
+  medFreq:                { backgroundColor: TEAL_LT, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
+  medFreqText:            { fontSize: 10, color: TEAL, fontWeight: '600' },
+
+  // Empty state for meds
+  medsEmpty:              { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 22, alignItems: 'center', borderWidth: 1, borderColor: '#F3F4F6', borderStyle: 'dashed' },
+  medsEmptyEmoji:         { fontSize: 32, marginBottom: 6 },
+  medsEmptyTitle:         { fontSize: 14, fontWeight: '700', color: DARK, marginBottom: 4 },
+  medsEmptyText:          { fontSize: 12, color: GRAY },
 });
 
 const dd = StyleSheet.create({
-  overlay:        { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'flex-start', paddingTop: 100, paddingHorizontal: 20 },
+  overlay:        { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'flex-start', paddingTop: 80, paddingHorizontal: 20 },
   menu:           { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16, elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12 },
   menuTitle:      { fontSize: 14, fontWeight: '700', color: GRAY, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 },
   menuItem:       { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 14, marginBottom: 6, backgroundColor: '#F9FAFB' },
