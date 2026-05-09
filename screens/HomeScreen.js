@@ -191,7 +191,7 @@ export default function HomeScreen({
     { emoji: '👨‍👩‍👧', title: 'Family', subtitle: `${members.length} profile${members.length !== 1 ? 's' : ''}`, bg: PEACH_LT, action: () => setShowFamilyMgr(true) },
   ];
 
-  return (
+ 
    return (
     <SafeAreaView style={s.safe}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
