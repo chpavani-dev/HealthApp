@@ -16,7 +16,7 @@ const GRAY    = '#6B7280';
 const DARK    = '#111827';
 const BG      = '#F5F7FA';
 
-const GOOGLE_VISION_API_KEY = 'AIzaSyDjS8w_l5XEgy6slSOmVxXwzZ14PjDcWbI';
+
 const AI_SERVICE_URL = 'https://medrecord-ai-production.up.railway.app';
 const USE_AI_SERVICE        = true;
 
@@ -104,17 +104,20 @@ function urgency(days) {
   return            { color: GREEN,  bg: '#F0FDF4', label: `${days}d left`, tag: 'On track' };
 }
 
-async function runOCR(base64) {
-  const response = await fetch(
-    `https://vision.googleapis.com/v1/images:annotate?key=${GOOGLE_VISION_API_KEY}`,
-    {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ requests: [{ image: { content: base64 }, features: [{ type: 'TEXT_DETECTION' }] }] })
-    }
-  );
-  const data = await response.json();
-  return data.responses?.[0]?.fullTextAnnotation?.text || '';
+async function runOCRFallback(uri) {
+  try {
+    const formData = new FormData();
+    formData.append('file', { uri, type: 'image/jpeg', name: 'image.jpg' });
+    const response = await fetch(`${AI_SERVICE_URL}/ocr`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'multipart/form-data' },
+      body: formData,
+    });
+    const data = await response.json();
+    return data.text || '';
+  } catch { return ''; }
 }
+
 
 function parseAllDrugs(text) {
   const lines  = text.split('\n').map(l => l.trim()).filter(l => l.length > 1);

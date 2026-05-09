@@ -26,7 +26,7 @@ const GRAY    = '#6B7280';
 const DARK    = '#111827';
 const BG      = '#F5F7FA';
 
-const GOOGLE_VISION_API_KEY = 'AIzaSyDjS8w_l5XEgy6slSOmVxXwzZ14PjDcWbI';
+
 const AI_SERVICE_URL = 'https://medrecord-ai-production.up.railway.app';
 const USE_AI_SERVICE = true;
 
@@ -68,19 +68,17 @@ const CAT_COLORS = {
 };
 
 // ── Legacy OCR + parser (fallback only) ───────────────────────────────
-async function runOCR(base64Image) {
+async function runOCRFallback(uri) {
   try {
-    const response = await fetch(
-      `https://vision.googleapis.com/v1/images:annotate?key=${GOOGLE_VISION_API_KEY}`,
-      {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          requests: [{ image: { content: base64Image }, features: [{ type: 'TEXT_DETECTION', maxResults: 1 }] }]
-        })
-      }
-    );
+    const formData = new FormData();
+    formData.append('file', { uri, type: 'image/jpeg', name: 'image.jpg' });
+    const response = await fetch(`${AI_SERVICE_URL}/ocr`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'multipart/form-data' },
+      body: formData,
+    });
     const data = await response.json();
-    return data.responses?.[0]?.fullTextAnnotation?.text || '';
+    return data.text || '';
   } catch { return ''; }
 }
 
