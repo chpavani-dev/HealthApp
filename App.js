@@ -12,6 +12,26 @@ import PrescriptionsScreen from './screens/PrescriptionsScreen';
 import TimelineScreen      from './screens/TimelineScreen';
 import LoginScreen         from './screens/LoginScreen';
 import ProfileScreen       from './screens/ProfileScreen';
+import * as Sentry from '@sentry/react-native';
+
+Sentry.init({
+  dsn: 'https://a586fb5f3137cce8f5c23a3c45f91469@o4511360693633024.ingest.us.sentry.io/4511360719912960',
+
+  // Adds more context data to events (IP address, cookies, user, etc.)
+  // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
+  sendDefaultPii: true,
+
+  // Enable Logs
+  enableLogs: true,
+
+  // Configure Session Replay
+  replaysSessionSampleRate: 0.1,
+  replaysOnErrorSampleRate: 1,
+  integrations: [Sentry.mobileReplayIntegration(), Sentry.feedbackIntegration()],
+
+  // uncomment the line below to enable Spotlight (https://spotlightjs.com)
+  // spotlight: __DEV__,
+});
 
 const Tab = createBottomTabNavigator();
 
@@ -180,4 +200,4 @@ const styles = StyleSheet.create({
   loadingText:  { fontSize: 24, fontWeight: '800', color: '#0B8FAC' },
 });
 
-registerRootComponent(App);
+registerRootComponent(Sentry.wrap(App));

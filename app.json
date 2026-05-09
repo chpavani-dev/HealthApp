@@ -23,6 +23,16 @@
       "eas": {
         "projectId": "a30dac87-7d2d-4391-8162-90232a1815ea"
       }
-    }
+    },
+    "plugins": [
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "med-record",
+          "organization": "medrecord-r1"
+        }
+      ]
+    ]
   }
 }

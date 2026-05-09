@@ -192,9 +192,18 @@ export default function HomeScreen({
   ];
 
   return (
+   return (
     <SafeAreaView style={s.safe}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
 
+        <TouchableOpacity
+          onPress={() => { throw new Error('Sentry test crash from HomeScreen'); }}
+          style={{ padding: 10, alignSelf: 'center', marginTop: 4, backgroundColor: '#FEE2E2', borderRadius: 8 }}
+        >
+          <Text style={{ color: '#B91C1C', fontSize: 12, fontWeight: '600' }}>
+            🧪 Test Sentry (remove after)
+          </Text>
+        </TouchableOpacity>
         {/* ── Top bar: subtle profile chip + logout text ── */}
         <View style={s.topBar}>
           <TouchableOpacity style={s.profileChip} onPress={() => setShowDropdown(true)} activeOpacity={0.7}>
