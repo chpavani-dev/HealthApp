@@ -228,24 +228,7 @@ export default function HomeScreen({
 
         {/* ── Top bar: subtle profile chip + logout text ── */}
         <View style={s.topBar}>
-          <TouchableOpacity style={s.profileChip} onPress={() => setShowDropdown(true)} activeOpacity={0.7}>
-            <View style={s.profileChipAvatar}>
-              <Text style={s.profileChipAvatarText}>
-                {activeMember?.name?.charAt(0).toUpperCase() || 'M'}
-              </Text>
-            </View>
-            <View>
-              <Text style={s.profileChipLabel}>Profile</Text>
-              <Text style={s.profileChipName}>
-                {activeMember?.name?.split(' ')[0]}
-                {activeMember?.relation ? ` · ${activeMember.relation}` : ''}
-                <Text style={s.profileChipChevron}>  ▾</Text>
-              </Text>
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={onLogout}>
-            <Text style={s.logoutText}>Logout</Text>
-          </TouchableOpacity>
+          
         </View>
 
         {/* ── Greeting ── */}
