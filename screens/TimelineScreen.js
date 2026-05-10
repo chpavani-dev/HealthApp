@@ -441,14 +441,11 @@ export default function TimelineScreen({ activeMember }) {
       setAvailable(avail);
     } catch(e) {
       console.log('loadTimelineData error:', e);
-      // Fall back to sample data only
-      const built = Object.values(METRIC_DEFS)
-        .filter(def => SAMPLE_DATA[def.id])
-        .map(def => ({ ...def, data: SAMPLE_DATA[def.id] }));
-      setTier1Metrics(built);
+      Alert.alert('Trends Error', String(e?.message || e));
+      setTier1Metrics([]);
       setAutoPromoted([]);
       setAvailable([]);
-      setShowSampleData(true);
+      setShowSampleData(false);
     }
   }
 
