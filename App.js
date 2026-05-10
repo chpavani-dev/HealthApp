@@ -14,9 +14,12 @@ import LoginScreen         from './screens/LoginScreen';
 import ProfileScreen       from './screens/ProfileScreen';
 import * as Sentry from '@sentry/react-native';
 
+
 Sentry.init({
   dsn: 'https://a586fb5f3137cce8f5c23a3c45f91469@o4511360693633024.ingest.us.sentry.io/4511360719912960',
-
+  
+  release: 'medrecord@1.6.0',  // ← ADD THIS LINE
+  
   // Adds more context data to events (IP address, cookies, user, etc.)
   // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
   sendDefaultPii: true,
