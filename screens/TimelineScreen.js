@@ -412,13 +412,13 @@ export default function TimelineScreen({ activeMember }) {
       const stored = await getTimelineValues(memberId);
       const storedKeys = Object.keys(stored);
 
-      Alert.alert('DIAG 1', 'memberId: ' + memberId + '\nstored keys: ' + storedKeys.length + '\nfirst 3: ' + storedKeys.slice(0, 3).join(','));
+   
 
       const tieredResult = await getTieredTrackedMetrics(memberId);
       const tier1 = tieredResult.tier1 || [];
       const promotedIds = tieredResult.autoPromoted || [];
 
-      Alert.alert('DIAG 2', 'tier1: ' + tier1.join(',') + '\npromoted: ' + promotedIds.join(','));
+    
 
       const hasAnyRealData = storedKeys.length > 0;
       setShowSampleData(!hasAnyRealData);
@@ -439,7 +439,7 @@ export default function TimelineScreen({ activeMember }) {
         return { ...def, data: realData };
       }).filter(m => m.data.length > 0);
 
-      Alert.alert('DIAG 3', 'hasReal: ' + hasAnyRealData + '\ntier1Built: ' + tier1Built.length + '\nautoBuilt: ' + autoBuilt.length);
+   
 
       setTier1Metrics(tier1Built);
       setAutoPromoted(autoBuilt);
@@ -453,7 +453,7 @@ export default function TimelineScreen({ activeMember }) {
       }
     } catch(e) {
       console.log('loadTimelineData error:', e);
-      Alert.alert('CATCH FIRED', String(e?.message || e));
+      
       setTier1Metrics([]);
       setAutoPromoted([]);
       setAvailable([]);

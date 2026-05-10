@@ -89,7 +89,9 @@ function MainApp({ members, activeMember, onSwitchMember, onLogout, onUpdateMemb
         <Tab.Screen name="Prescriptions">
           {(props) => <PrescriptionsScreen {...props} activeMember={activeMember} />}
         </Tab.Screen>
-        <Tab.Screen name="Timeline" component={TimelineScreen} />
+        <Tab.Screen name="Timeline">
+          {(props) => <TimelineScreen {...props} activeMember={activeMember} />}
+        </Tab.Screen>
       </Tab.Navigator>
     </NavigationContainer>
   );
