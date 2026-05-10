@@ -195,40 +195,28 @@ export default function HomeScreen({
    return (
     <SafeAreaView style={s.safe}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
-<TouchableOpacity
-          onPress={async () => {
-            try {
-              const AS = require('@react-native-async-storage/async-storage').default;
-              const keys = await AS.getAllKeys();
-              const memberKeys = keys.filter(k => k.startsWith('timeline_') || k.startsWith('reports_') || k.startsWith('tracked_metrics_'));
-              let report = 'Active memberId: ' + (activeMember?.id || 'default') + '\n\n';
-              for (const k of memberKeys) {
-                const val = await AS.getItem(k);
-                const parsed = JSON.parse(val);
-                if (k.startsWith('timeline_')) {
-                  const metricCount = Object.keys(parsed).length;
-                  const totalEntries = Object.values(parsed).reduce((sum, arr) => sum + arr.length, 0);
-                  const metricNames = Object.keys(parsed).slice(0, 6).join(', ');
-                  report += k + ':\n  ' + metricCount + ' metrics, ' + totalEntries + ' entries\n  (' + metricNames + ')\n\n';
-                } else if (k.startsWith('reports_')) {
-                  report += k + ': ' + parsed.length + ' reports\n\n';
-                } else {
-                  report += k + ': ' + JSON.stringify(parsed).slice(0, 80) + '\n\n';
-                }
-              }
-              Alert.alert('Debug Storage', report);
-            } catch (e) {
-              Alert.alert('Debug Error', String(e));
-            }
-          }}
-          style={{ padding: 10, alignSelf: 'center', marginTop: 4, backgroundColor: '#FEF3C7', borderRadius: 8 }}
-        >
-          <Text style={{ color: '#92400E', fontSize: 12, fontWeight: '600' }}>🔍 Debug Storage</Text>
-        </TouchableOpacity>
+
 
         {/* ── Top bar: subtle profile chip + logout text ── */}
         <View style={s.topBar}>
-          
+          <TouchableOpacity style={s.profileChip} onPress={() => setShowDropdown(true)} activeOpacity={0.7}>
+            <View style={s.profileChipAvatar}>
+              <Text style={s.profileChipAvatarText}>
+                {activeMember?.name?.charAt(0).toUpperCase() || 'M'}
+              </Text>
+            </View>
+            <View>
+              <Text style={s.profileChipLabel}>Profile</Text>
+              <Text style={s.profileChipName}>
+                {activeMember?.name?.split(' ')[0]}
+                {activeMember?.relation ? ` · ${activeMember.relation}` : ''}
+                <Text style={s.profileChipChevron}>  ▾</Text>
+              </Text>
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={onLogout}>
+            <Text style={s.logoutText}>Logout</Text>
+          </TouchableOpacity>
         </View>
 
         {/* ── Greeting ── */}
