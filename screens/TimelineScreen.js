@@ -410,12 +410,21 @@ export default function TimelineScreen({ activeMember }) {
   async function loadTimelineData() {
     try {
       const stored = await getTimelineValues(memberId);
-      const { tier1, autoPromoted: promotedIds } = await getTieredTrackedMetrics(memberId);
+      const storedKeys = Object.keys(stored);
+      
+      // DIAGNOSTIC 1: What's in stored?
+      Alert.alert('DIAG 1', 'memberId: ' + memberId + '\nstored keys: ' + storedKeys.length + '\nfirst 3: ' + storedKeys.slice(0, 3).join(','));
 
-      const hasAnyRealData = Object.keys(stored).length > 0;
+      const tieredResult = await getTieredTrackedMetrics(memberId);
+      const tier1 = tieredResult.tier1 || [];
+      const promotedIds = tieredResult.autoPromoted || [];
+
+      // DIAGNOSTIC 2: What's tracked?
+      Alert.alert('DIAG 2', 'tier1: ' + tier1.join(',') + '\npromoted: ' + promotedIds.join(','));
+
+      const hasAnyRealData = storedKeys.length > 0;
       setShowSampleData(!hasAnyRealData);
 
-      // Build tier 1 (only show metrics with data — real or sample)
       const tier1Built = tier1.map(metricId => {
         const def = METRIC_DEFS[metricId] || genericDef(metricId);
         const realData = stored[metricId] || [];
@@ -425,6 +434,35 @@ export default function TimelineScreen({ activeMember }) {
         }
         return { ...def, data };
       }).filter(m => m.data.length > 0);
+
+      const autoBuilt = promotedIds.map(metricId => {
+        const def = METRIC_DEFS[metricId] || genericDef(metricId);
+        const realData = stored[metricId] || [];
+        return { ...def, data: realData };
+      }).filter(m => m.data.length > 0);
+
+      // DIAGNOSTIC 3: What got built?
+      Alert.alert('DIAG 3', 'hasReal: ' + hasAnyRealData + '\ntier1Built: ' + tier1Built.length + '\nautoBuilt: ' + autoBuilt.length + '\nshowSample: ' + (!hasAnyRealData));
+
+      setTier1Metrics(tier1Built);
+      setAutoPromoted(autoBuilt);
+
+      try {
+        const avail = await getAvailableMetrics(memberId);
+        setAvailable(avail);
+      } catch (availErr) {
+        console.log('getAvailableMetrics error:', availErr);
+        setAvailable([]);
+      }
+    } catch(e) {
+      console.log('loadTimelineData error:', e);
+      Alert.alert('CATCH FIRED', String(e?.message || e));
+      setTier1Metrics([]);
+      setAutoPromoted([]);
+      setAvailable([]);
+      setShowSampleData(false);
+    }
+  }
 
       // Build auto-promoted tier
       const autoBuilt = promotedIds.map(metricId => {
