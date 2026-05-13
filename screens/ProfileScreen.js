@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   TextInput, SafeAreaView, ScrollView,
-  Modal, Alert
+  Modal, Alert, ActivityIndicator
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Location from 'expo-location';
 
 const TEAL    = '#0B8FAC';
 const TEAL_LT = '#E8F7FA';
@@ -48,11 +49,12 @@ function MemberCard({ member, isActive, onPress, onEdit, onDelete }) {
 }
 
 function MemberFormModal({ visible, member, onSave, onClose }) {
-  const [name, setName]         = useState(member?.name || '');
-  const [age, setAge]           = useState(member?.age || '');
-  const [gender, setGender]     = useState(member?.gender || 'Male');
-  const [location, setLocation] = useState(member?.location || '');
-  const [relation, setRelation] = useState(member?.relation || 'Self');
+  const [name, setName]                 = useState(member?.name || '');
+  const [age, setAge]                   = useState(member?.age || '');
+  const [gender, setGender]             = useState(member?.gender || 'Male');
+  const [location, setLocation]         = useState(member?.location || '');
+  const [relation, setRelation]         = useState(member?.relation || 'Self');
+  const [fetchingLocation, setFetching] = useState(false);
 
   React.useEffect(() => {
     if (member) {
@@ -63,6 +65,47 @@ function MemberFormModal({ visible, member, onSave, onClose }) {
       setRelation(member.relation || 'Self');
     }
   }, [member]);
+
+  async function handleUseCurrentLocation() {
+    setFetching(true);
+    try {
+      // Step 1: request permission
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission required',
+          'Location access is needed to detect your city. You can also type it manually.'
+        );
+        setFetching(false);
+        return;
+      }
+
+      // Step 2: get coordinates
+      const position = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      const { latitude, longitude } = position.coords;
+
+      // Step 3: reverse-geocode to address
+      const addresses = await Location.reverseGeocodeAsync({ latitude, longitude });
+      if (addresses && addresses.length > 0) {
+        const addr = addresses[0];
+        const city = addr.city || addr.subregion || addr.district || '';
+        const state = addr.region || '';
+        const formatted = [city, state].filter(Boolean).join(', ') || 'Unknown';
+        setLocation(formatted);
+      } else {
+        Alert.alert('Could not determine location', 'Please type your city manually.');
+      }
+    } catch (e) {
+      console.log('Location error:', e);
+      Alert.alert(
+        'Could not get location',
+        'Make sure location services are enabled on your phone. You can also type it manually.'
+      );
+    }
+    setFetching(false);
+  }
 
   function handleSave() {
     if (!name.trim()) { Alert.alert('Missing info', 'Please enter a name.'); return; }
@@ -107,6 +150,24 @@ function MemberFormModal({ visible, member, onSave, onClose }) {
 
             <Text style={s.fieldLabel}>Location</Text>
             <TextInput style={s.input} placeholder="e.g. Mumbai, Maharashtra" value={location} onChangeText={setLocation} />
+            <TouchableOpacity
+              style={s.locationBtn}
+              onPress={handleUseCurrentLocation}
+              disabled={fetchingLocation}
+              activeOpacity={0.7}
+            >
+              {fetchingLocation ? (
+                <>
+                  <ActivityIndicator size="small" color={TEAL} />
+                  <Text style={s.locationBtnText}>Detecting your location...</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={s.locationBtnIcon}>📍</Text>
+                  <Text style={s.locationBtnText}>Use Current Location</Text>
+                </>
+              )}
+            </TouchableOpacity>
 
             <Text style={s.fieldLabel}>Relationship</Text>
             <View style={s.chipRow}>
@@ -193,7 +254,6 @@ export default function ProfileScreen({ onProfileComplete, existingMembers }) {
     <SafeAreaView style={s.safe}>
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
 
-        {/* Header */}
         <View style={s.header}>
           <View style={s.logoCircle}>
             <Text style={{ fontSize: 30 }}>🏥</Text>
@@ -202,7 +262,6 @@ export default function ProfileScreen({ onProfileComplete, existingMembers }) {
           <Text style={s.subtitle}>Add yourself and your family members to manage everyone's health records</Text>
         </View>
 
-        {/* Members list */}
         {members.length > 0 && (
           <>
             <Text style={s.sectionTitle}>Profiles ({members.length})</Text>
@@ -219,7 +278,6 @@ export default function ProfileScreen({ onProfileComplete, existingMembers }) {
           </>
         )}
 
-        {/* Add member button */}
         <TouchableOpacity
           style={s.addMemberBtn}
           onPress={() => { setEditMember(null); setShowForm(true); }}
@@ -231,7 +289,6 @@ export default function ProfileScreen({ onProfileComplete, existingMembers }) {
           </Text>
         </TouchableOpacity>
 
-        {/* Continue button */}
         {members.length > 0 && (
           <TouchableOpacity style={s.continueBtn} onPress={handleDone} activeOpacity={0.8}>
             <Text style={s.continueBtnText}>Continue to App →</Text>
@@ -290,6 +347,11 @@ const s = StyleSheet.create({
 
   fieldLabel:        { fontSize: 13, fontWeight: '700', color: DARK, marginBottom: 8 },
   input:             { borderWidth: 1.5, borderColor: '#E5E7EB', borderRadius: 12, padding: 14, fontSize: 14, color: DARK, marginBottom: 16, backgroundColor: '#FAFAFA' },
+
+  // Location button
+  locationBtn:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: TEAL_LT, borderRadius: 12, paddingVertical: 12, marginTop: -8, marginBottom: 16, gap: 8, borderWidth: 1, borderColor: TEAL },
+  locationBtnIcon:   { fontSize: 16 },
+  locationBtnText:   { fontSize: 13, fontWeight: '700', color: TEAL },
 
   chipRow:           { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
   chip:              { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#F3F4F6', borderWidth: 1.5, borderColor: '#E5E7EB' },

@@ -1,18 +1,16 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// ─── Keys ────────────────────────────────────────────────────────────
+// Keys
 const key = (type, memberId) => `${type}_${memberId || 'default'}`;
 
-// ─── Default Tier 1 metrics (12) ─────────────────────────────────────
-// Always shown in Trends by default. New metrics auto-promote on first
-// abnormal reading; users can also pin extras manually.
+// Default Tier 1 metrics (12)
 export const DEFAULT_TRACKED_METRICS = [
   'hba1c', 'glucose', 'hb', 'tsh', 'cholesterol',
   'ldl', 'hdl', 'triglycerides', 'creatinine',
   'urea', 'platelet', 'wbc',
 ];
 
-// ─── Reports ─────────────────────────────────────────────────────────
+// Reports
 export async function getReports(memberId) {
   try {
     const data = await AsyncStorage.getItem(key('reports', memberId));
@@ -40,7 +38,7 @@ export async function deleteReport(reportId, memberId) {
   return updated;
 }
 
-// ─── Prescriptions ───────────────────────────────────────────────────
+// Prescriptions
 export async function getPrescriptions(memberId) {
   try {
     const data = await AsyncStorage.getItem(key('prescriptions', memberId));
@@ -75,7 +73,7 @@ export async function togglePrescription(rxId, memberId) {
   return updated;
 }
 
-// ─── Timeline values ─────────────────────────────────────────────────
+// Timeline values
 export async function getTimelineValues(memberId) {
   try {
     const data = await AsyncStorage.getItem(key('timeline', memberId));
@@ -92,7 +90,6 @@ export async function saveTimelineValues(values, memberId) {
 export async function addTimelineEntry(metricId, value, date, memberId) {
   const existing = await getTimelineValues(memberId);
   if (!existing[metricId]) existing[metricId] = [];
-  // Avoid duplicate dates
   const filtered = existing[metricId].filter(e => e.date !== date);
   existing[metricId] = [...filtered, { date, value }]
     .sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -100,21 +97,21 @@ export async function addTimelineEntry(metricId, value, date, memberId) {
   return existing;
 }
 
-// ─── Legacy regex OCR parser (kept for fallback) ─────────────────────
+// Legacy regex OCR parser (kept for fallback)
 export async function parseAndSaveLabValues(rawText, date, memberId) {
   const metrics = [
-    { id: 'hba1c',         patterns: ['hba1c', 'hb a1c', 'glycated', 'glycosylated'],          unit: '%',         multiplier: 1 },
-    { id: 'glucose',       patterns: ['fasting glucose', 'fasting blood glucose', 'fbg', 'fbs'], unit: 'mg/dL',  multiplier: 1 },
-    { id: 'hb',            patterns: ['haemoglobin', 'hemoglobin', 'hb ', 'hgb'],              unit: 'g/dL',      multiplier: 1 },
-    { id: 'tsh',           patterns: ['tsh', 'thyroid stimulating'],                            unit: 'mIU/L',     multiplier: 1 },
-    { id: 'cholesterol',   patterns: ['total cholesterol', 'cholesterol total', 'chol'],        unit: 'mg/dL',     multiplier: 1 },
-    { id: 'ldl',           patterns: ['ldl', 'low density', 'ldl cholesterol'],                 unit: 'mg/dL',     multiplier: 1 },
-    { id: 'hdl',           patterns: ['hdl', 'high density', 'hdl cholesterol'],                unit: 'mg/dL',     multiplier: 1 },
-    { id: 'triglycerides', patterns: ['triglycerides', 'triglyceride', 'tgl', 'trig'],          unit: 'mg/dL',     multiplier: 1 },
-    { id: 'creatinine',    patterns: ['creatinine', 'serum creatinine', 'creat'],               unit: 'mg/dL',     multiplier: 1 },
-    { id: 'urea',          patterns: ['blood urea', 'urea', 'bun'],                             unit: 'mg/dL',     multiplier: 1 },
-    { id: 'platelet',      patterns: ['platelet', 'plt', 'thrombocyte'],                        unit: 'lakh/μL',   multiplier: 1 },
-    { id: 'wbc',           patterns: ['wbc', 'white blood', 'leucocyte', 'leukocyte'],          unit: 'cells/μL',  multiplier: 1 },
+    { id: 'hba1c',         patterns: ['hba1c', 'hb a1c', 'glycated', 'glycosylated'],          unit: '%' },
+    { id: 'glucose',       patterns: ['fasting glucose', 'fasting blood glucose', 'fbg', 'fbs'], unit: 'mg/dL' },
+    { id: 'hb',            patterns: ['haemoglobin', 'hemoglobin', 'hb ', 'hgb'],              unit: 'g/dL' },
+    { id: 'tsh',           patterns: ['tsh', 'thyroid stimulating'],                            unit: 'mIU/L' },
+    { id: 'cholesterol',   patterns: ['total cholesterol', 'cholesterol total', 'chol'],        unit: 'mg/dL' },
+    { id: 'ldl',           patterns: ['ldl', 'low density', 'ldl cholesterol'],                 unit: 'mg/dL' },
+    { id: 'hdl',           patterns: ['hdl', 'high density', 'hdl cholesterol'],                unit: 'mg/dL' },
+    { id: 'triglycerides', patterns: ['triglycerides', 'triglyceride', 'tgl', 'trig'],          unit: 'mg/dL' },
+    { id: 'creatinine',    patterns: ['creatinine', 'serum creatinine', 'creat'],               unit: 'mg/dL' },
+    { id: 'urea',          patterns: ['blood urea', 'urea', 'bun'],                             unit: 'mg/dL' },
+    { id: 'platelet',      patterns: ['platelet', 'plt', 'thrombocyte'],                        unit: 'lakh/uL' },
+    { id: 'wbc',           patterns: ['wbc', 'white blood', 'leucocyte', 'leukocyte'],          unit: 'cells/uL' },
   ];
 
   const lines      = rawText.toLowerCase().split('\n');
@@ -125,7 +122,6 @@ export async function parseAndSaveLabValues(rawText, date, memberId) {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const matchesMetric = metric.patterns.some(p => line.includes(p));
-
       if (matchesMetric) {
         const searchText = lines.slice(i, i + 3).join(' ');
         const numMatch   = searchText.match(/(\d+\.?\d*)/);
@@ -140,7 +136,6 @@ export async function parseAndSaveLabValues(rawText, date, memberId) {
       }
     }
   }
-
   return extracted;
 }
 
@@ -165,12 +160,10 @@ function isValidValue(metricId, value) {
 }
 
 // ====================================================================
-//  NEW IN v1.6 — TIER 1/2 TRACKED METRICS + AI LAB SAVE
+// Tier 1/2 Tracked metrics + AI Lab save
 // ====================================================================
 
-// ─── Test name → metricId mapping ────────────────────────────────────
-// Backend sends canonical names like "HbA1c", "Hemoglobin", "Vitamin D".
-// We map them to short metricIds the timeline + UI use.
+// Test name to metricId mapping
 const NAME_TO_METRIC_ID = {
   'hba1c':                 'hba1c',
   'hemoglobin':            'hb',
@@ -206,7 +199,6 @@ const NAME_TO_METRIC_ID = {
   'potassium':             'potassium',
 };
 
-// Display labels for metricIds (used in Trends)
 export const METRIC_LABELS = {
   hba1c:          'HbA1c',
   hb:             'Hemoglobin',
@@ -240,22 +232,19 @@ export const METRIC_LABELS = {
   potassium:      'Potassium',
 };
 
-// Convert Claude's canonical name → our metricId. Falls back to lowercased/snake-cased name.
 function canonicalToMetricId(canonicalName) {
   if (!canonicalName) return null;
-  const key = canonicalName.trim().toLowerCase();
-  if (NAME_TO_METRIC_ID[key]) return NAME_TO_METRIC_ID[key];
-  // Fallback: snake_case the name so unknown metrics still get an ID
-  return key.replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+  const lookupKey = canonicalName.trim().toLowerCase();
+  if (NAME_TO_METRIC_ID[lookupKey]) return NAME_TO_METRIC_ID[lookupKey];
+  return lookupKey.replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
 }
 
-// ─── Tracked metrics (per member, with auto-promotion) ────────────────
+// Tracked metrics (per member, with auto-promotion)
 export async function getTrackedMetrics(memberId) {
   try {
     const data = await AsyncStorage.getItem(key('tracked_metrics', memberId));
     if (data) return JSON.parse(data);
-  } catch { /* fall through */ }
-  // First time for this member — seed with defaults
+  } catch { }
   return [...DEFAULT_TRACKED_METRICS];
 }
 
@@ -281,8 +270,6 @@ export async function removeTrackedMetric(metricId, memberId) {
   return updated;
 }
 
-// Returns metrics that have data in timeline but are NOT yet tracked.
-// Used by the metric picker sheet.
 export async function getAvailableMetrics(memberId) {
   const timeline = await getTimelineValues(memberId);
   const tracked  = await getTrackedMetrics(memberId);
@@ -301,30 +288,67 @@ export async function getAvailableMetrics(memberId) {
       latestDate: latest.date,
     });
   }
-  // Sort by reading count descending (most data first)
   available.sort((a, b) => b.readingCount - a.readingCount);
   return available;
 }
 
-// ─── AI Lab Report Save (new structured pipeline) ────────────────────
-// Takes the parsed result from /ocr/report and:
-//   1. Saves a report card per panel detected
-//   2. Pushes every numeric test value into the timeline using the
-//      report_date (NOT today's date) — so historical reports land
-//      in the right spot on Trend charts
-//   3. Auto-promotes any abnormal metric not already tracked
+// ====================================================================
+// NEW v1.7: Duplicate detection for lab reports
+// ====================================================================
+// Helper used by the upload flow to detect when a user uploads the same
+// report they've already saved. Matches on (lab + date + panel_name).
 //
-// Returns { reportsSaved, valuesAdded, newlyTrackedMetrics }
+// Returns { allDuplicate, totalPanels, duplicateCount, matches } where:
+//   allDuplicate    = true ONLY if every panel in `parsed` matches an
+//                     existing saved report
+//   matches         = array of objects describing which panels matched
+//                     which existing reports
 //
-// Expected `parsed` shape from backend v1.6.0:
-//   {
-//     lab_name, report_date, patient_name,
-//     panels: [{ panel_name, category, tests: [{ name, value, unit, normal_range, flag, is_standard_metric }] }],
-//     abnormal_findings: [{ name, value, unit, flag, panel, category }]
-//   }
-//
-// Optional `overrides` lets the user edit lab_name and report_date on the
-// review screen before save: { labName, reportDate }
+// This intentionally does NOT delete or modify any data. The caller
+// decides what to do (e.g., block the upload and show a popup).
+export async function findExactDuplicateReports(parsed, memberId, overrides = {}) {
+  if (!parsed || !Array.isArray(parsed.panels) || parsed.panels.length === 0) {
+    return { allDuplicate: false, totalPanels: 0, duplicateCount: 0, matches: [] };
+  }
+
+  const labName    = (overrides.labName    || parsed.lab_name    || '').trim().toLowerCase();
+  const reportDate = (overrides.reportDate || parsed.report_date || '').trim();
+
+  // No usable lab or date means we can't be confident about duplicates
+  if (!labName || !reportDate) {
+    return { allDuplicate: false, totalPanels: parsed.panels.length, duplicateCount: 0, matches: [] };
+  }
+
+  const existing = await getReports(memberId);
+  const matches  = [];
+
+  for (const panel of parsed.panels) {
+    const panelName = (panel.panel_name || '').trim().toLowerCase();
+    if (!panelName) continue;
+
+    const matchedReport = existing.find(r =>
+      (r.lab || '').trim().toLowerCase() === labName &&
+      (r.date || '').trim() === reportDate &&
+      (r.name || '').trim().toLowerCase() === panelName
+    );
+
+    if (matchedReport) {
+      matches.push({
+        panelName: panel.panel_name,
+        existingReportId: matchedReport.id,
+        existingReportName: matchedReport.name,
+      });
+    }
+  }
+
+  const totalPanels    = parsed.panels.length;
+  const duplicateCount = matches.length;
+  const allDuplicate   = duplicateCount === totalPanels && totalPanels > 0;
+
+  return { allDuplicate, totalPanels, duplicateCount, matches };
+}
+
+// AI Lab Report Save
 export async function saveLabReportFromAI(parsed, memberId, overrides = {}) {
   if (!parsed || !Array.isArray(parsed.panels)) {
     return { reportsSaved: 0, valuesAdded: 0, newlyTrackedMetrics: [] };
@@ -338,7 +362,6 @@ export async function saveLabReportFromAI(parsed, memberId, overrides = {}) {
   let reportsSaved = 0;
   let valuesAdded  = 0;
 
-  // 1. Save one report card per panel
   for (const panel of parsed.panels) {
     if (!panel || !Array.isArray(panel.tests)) continue;
 
@@ -347,25 +370,24 @@ export async function saveLabReportFromAI(parsed, memberId, overrides = {}) {
     ).length;
 
     const report = {
-      id:        `${Date.now()}_${reportsSaved}_${Math.random().toString(36).slice(2, 7)}`,
-      name:      panel.panel_name || 'Lab Report',
-      lab:       labName,
-      category:  panel.category || 'Blood',
-      date:      reportDate,                         // <-- test date, not upload date
-      uploadedAt: new Date().toISOString(),          // kept internally only
+      id:          `${Date.now()}_${reportsSaved}_${Math.random().toString(36).slice(2, 7)}`,
+      name:        panel.panel_name || 'Lab Report',
+      lab:         labName,
+      category:    panel.category || 'Blood',
+      date:        reportDate,
+      uploadedAt:  new Date().toISOString(),
       patientName: parsed.patient_name || null,
-      tests:     panel.tests,
-      status:    abnormalCount > 0 ? 'abnormal' : 'normal',
+      tests:       panel.tests,
+      status:      abnormalCount > 0 ? 'abnormal' : 'normal',
       abnormalCount,
-      testCount: panel.tests.length,
+      testCount:   panel.tests.length,
     };
 
     await addReport(report, memberId);
     reportsSaved += 1;
 
-    // 2. Push every numeric test value into the timeline using report_date
     for (const t of panel.tests) {
-      if (!t || typeof t.value !== 'number') continue;   // skip qualitative values
+      if (!t || typeof t.value !== 'number') continue;
       const metricId = canonicalToMetricId(t.name);
       if (!metricId) continue;
       await addTimelineEntry(metricId, t.value, reportDate, memberId);
@@ -373,7 +395,6 @@ export async function saveLabReportFromAI(parsed, memberId, overrides = {}) {
     }
   }
 
-  // 3. Auto-promote any abnormal metric not already tracked
   const newlyTrackedMetrics = [];
   if (Array.isArray(parsed.abnormal_findings) && parsed.abnormal_findings.length > 0) {
     const tracked = await getTrackedMetrics(memberId);
@@ -396,10 +417,6 @@ export async function saveLabReportFromAI(parsed, memberId, overrides = {}) {
   return { reportsSaved, valuesAdded, newlyTrackedMetrics };
 }
 
-// ─── Helper used by Trends to split tracked metrics into tiers ───────
-// Returns { tier1, autoPromoted } where:
-//   tier1        = the original 12 defaults (always shown first)
-//   autoPromoted = any tracked metric not in DEFAULT_TRACKED_METRICS
 export async function getTieredTrackedMetrics(memberId) {
   const tracked = await getTrackedMetrics(memberId);
   const defaults = new Set(DEFAULT_TRACKED_METRICS);

@@ -9,7 +9,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as Sharing from 'expo-sharing';
 import {
   getReports, addReport, deleteReport, parseAndSaveLabValues,
-  saveLabReportFromAI, saveReports
+  saveLabReportFromAI, saveReports, findExactDuplicateReports
 } from '../storage';
 
 const { width } = Dimensions.get('window');
@@ -32,7 +32,7 @@ const USE_AI_SERVICE = true;
 
 const CATEGORIES = ['All', 'Blood', 'Urine', 'Imaging', 'Pathology', 'Cardiac', 'Other'];
 
-// ── Date helpers ──────────────────────────────────────────────────────
+// Date helpers
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -46,7 +46,6 @@ function formatDateDisplay(isoOrAny) {
   } catch { return String(isoOrAny); }
 }
 
-// Convert "12 Jul 2024" or any date string to YYYY-MM-DD for sorting
 function toIsoDate(any) {
   if (!any) return todayISO();
   if (/^\d{4}-\d{2}-\d{2}/.test(String(any))) return String(any).slice(0, 10);
@@ -57,7 +56,6 @@ function toIsoDate(any) {
   return todayISO();
 }
 
-// ── Category colour map ───────────────────────────────────────────────
 const CAT_COLORS = {
   Blood:     TEAL,
   Urine:     GREEN,
@@ -67,7 +65,7 @@ const CAT_COLORS = {
   Other:     ORANGE,
 };
 
-// ── Legacy OCR + parser (fallback only) ───────────────────────────────
+// Legacy OCR fallback
 async function runOCRFallback(uri) {
   try {
     const formData = new FormData();
@@ -104,7 +102,6 @@ function parseReportText(text) {
   return { name, lab, category };
 }
 
-// ── Test row: shows one test result with abnormal flagging ────────────
 function TestRow({ test }) {
   const isAbnormal = ['low','high','critical_low','critical_high','abnormal'].includes(test.flag);
   const isCritical = test.flag === 'critical_low' || test.flag === 'critical_high';
@@ -129,7 +126,6 @@ function TestRow({ test }) {
   );
 }
 
-// ── Report Viewer (single panel detail view) ──────────────────────────
 function ReportViewer({ report, visible, onClose, onDelete, onEditLab }) {
   if (!report) return null;
 
@@ -164,7 +160,6 @@ function ReportViewer({ report, visible, onClose, onDelete, onEditLab }) {
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false}>
-            {/* Abnormal banner */}
             {abnormalCount > 0 && (
               <View style={v.abnormalBanner}>
                 <Text style={v.abnormalBannerTitle}>⚠ {abnormalCount} value{abnormalCount > 1 ? 's' : ''} need attention</Text>
@@ -174,14 +169,12 @@ function ReportViewer({ report, visible, onClose, onDelete, onEditLab }) {
               </View>
             )}
 
-            {/* Test list */}
             {tests.length > 0 && (
               <View style={v.testsSection}>
                 {tests.map((t, idx) => <TestRow key={idx} test={t} />)}
               </View>
             )}
 
-            {/* Image / PDF (if attached) */}
             {report.image && report.type === 'image' && (
               <Image source={{ uri: report.image }} style={v.reportImage} resizeMode="contain" />
             )}
@@ -200,7 +193,6 @@ function ReportViewer({ report, visible, onClose, onDelete, onEditLab }) {
               </View>
             )}
 
-            {/* Details + Edit Lab */}
             <View style={v.detailsCard}>
               <View style={v.detailsHeader}>
                 <Text style={v.detailsTitle}>Report Details</Text>
@@ -253,7 +245,6 @@ function ReportViewer({ report, visible, onClose, onDelete, onEditLab }) {
   );
 }
 
-// ── Edit Lab Name Modal ───────────────────────────────────────────────
 function EditLabModal({ report, visible, onClose, onSave }) {
   const [labName, setLabName] = useState('');
   useEffect(() => { if (report) setLabName(report.lab || ''); }, [report]);
@@ -291,7 +282,6 @@ function EditLabModal({ report, visible, onClose, onSave }) {
   );
 }
 
-// ── Category Pill ─────────────────────────────────────────────────────
 function CategoryPill({ label, active, onPress }) {
   return (
     <TouchableOpacity style={[s.pill, active && s.pillActive]} onPress={onPress} activeOpacity={0.7}>
@@ -300,7 +290,6 @@ function CategoryPill({ label, active, onPress }) {
   );
 }
 
-// ── Report Card ───────────────────────────────────────────────────────
 function ReportCard({ report, onPress, onDelete }) {
   const color = CAT_COLORS[report.category] || GRAY;
   const abnormalCount = report.abnormalCount ?? 0;
@@ -357,7 +346,6 @@ function ReportCard({ report, onPress, onDelete }) {
   );
 }
 
-// ── Processing Modal (multi-upload progress) ──────────────────────────
 function ProcessingModal({ visible, current, total, status }) {
   return (
     <Modal visible={visible} transparent animationType="fade">
@@ -377,7 +365,16 @@ function ProcessingModal({ visible, current, total, status }) {
   );
 }
 
-// ── Add Report Modal ──────────────────────────────────────────────────
+// Duplicate alert helper (centralized message)
+function showDuplicateBlockedAlert(matches) {
+  const listLines = matches.map(m => `• ${m.existingReportName}`).join('\n');
+  Alert.alert(
+    '⚠ Duplicate Report',
+    `This report has already been saved with the same lab, date, and panel name:\n\n${listLines}\n\nUpload cancelled. To replace this report, please delete the existing one from the Reports list first.`,
+    [{ text: 'OK' }]
+  );
+}
+
 function AddReportModal({ visible, onClose, onSaveResults, memberId }) {
   const [step, setStep]                  = useState(1);
   const [processing, setProcessing]      = useState(false);
@@ -389,13 +386,10 @@ function AddReportModal({ visible, onClose, onSaveResults, memberId }) {
   const [fileType, setFileType]          = useState('image');
   const [fileName, setFileName]          = useState('');
 
-  // AI parsed result (multi-panel)
-  const [aiResult, setAiResult]          = useState(null);   // full backend response
-  // User-editable overrides on review screen
+  const [aiResult, setAiResult]          = useState(null);
   const [editLab, setEditLab]            = useState('');
-  const [editDate, setEditDate]          = useState('');     // YYYY-MM-DD
+  const [editDate, setEditDate]          = useState('');
 
-  // Manual entry state (when AI fails)
   const [manualName, setManualName]      = useState('');
   const [manualLab,  setManualLab]       = useState('');
   const [manualCategory, setManualCategory] = useState('Blood');
@@ -425,6 +419,20 @@ function AddReportModal({ visible, onClose, onSaveResults, memberId }) {
           });
           const result = await aiResponse.json();
           if (result.success && Array.isArray(result.panels) && result.panels.length > 0) {
+            // === NEW: duplicate check BEFORE showing review screen ===
+            try {
+              const dupCheck = await findExactDuplicateReports(result, memberId);
+              if (dupCheck.allDuplicate) {
+                setScanning(false);
+                showDuplicateBlockedAlert(dupCheck.matches);
+                handleClose();
+                return;
+              }
+            } catch (dupErr) {
+              console.log('Duplicate check error:', dupErr);
+              // On error, allow the upload to continue rather than blocking
+            }
+
             setAiResult(result);
             setEditLab(result.lab_name || 'Unknown Lab');
             setEditDate(result.report_date || todayISO());
@@ -434,8 +442,7 @@ function AddReportModal({ visible, onClose, onSaveResults, memberId }) {
       }
 
       if (!aiOk) {
-        // Fallback: legacy OCR — saves a single report card with parsed regex values
-        const rawText = await runOCR(base64);
+        const rawText = await runOCRFallback(uri);
         if (rawText) {
           const parsed = parseReportText(rawText);
           setManualName(parsed.name);
@@ -443,7 +450,6 @@ function AddReportModal({ visible, onClose, onSaveResults, memberId }) {
           setManualCategory(parsed.category);
           setEditLab(parsed.lab);
           setEditDate(todayISO());
-          // Still save timeline values via legacy parser
           await parseAndSaveLabValues(rawText, todayISO(), memberId);
         } else {
           Alert.alert('OCR Error', 'Could not read report. Please fill details manually.');
@@ -473,7 +479,6 @@ function AddReportModal({ visible, onClose, onSaveResults, memberId }) {
     }
   }
 
-  // ── Multi-upload from gallery ────────────────────────────────────────
   async function pickMultipleFromGallery() {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) { Alert.alert('Permission needed', 'Please allow gallery access.'); return; }
@@ -494,6 +499,7 @@ function AddReportModal({ visible, onClose, onSaveResults, memberId }) {
       let totalValues    = 0;
       let totalNewMetrics = [];
       let totalAbnormal  = 0;
+      let totalSkippedDuplicates = 0;
 
       for (let i = 0; i < assets.length; i++) {
         const asset = assets[i];
@@ -509,9 +515,16 @@ function AddReportModal({ visible, onClose, onSaveResults, memberId }) {
           });
           const result = await aiResponse.json();
           if (result.success && Array.isArray(result.panels) && result.panels.length > 0) {
-            // Save with no overrides — use AI-extracted everything
+            // Duplicate check for this image
+            try {
+              const dupCheck = await findExactDuplicateReports(result, memberId);
+              if (dupCheck.allDuplicate) {
+                totalSkippedDuplicates += 1;
+                continue;
+              }
+            } catch (e) { /* allow through on error */ }
+
             const saved = await saveLabReportFromAI(result, memberId, {});
-            // Attach the source image to each newly created report
             await attachImageToLatestReports(saved.reportsSaved, asset.uri, memberId);
 
             totalReports += saved.reportsSaved;
@@ -522,10 +535,9 @@ function AddReportModal({ visible, onClose, onSaveResults, memberId }) {
           }
         } catch(e) {}
 
-        // Fallback for this image
         if (!aiOk) {
           try {
-            const rawText = await runOCR(asset.base64);
+            const rawText = await runOCRFallback(asset.uri);
             if (rawText) {
               const today  = todayISO();
               const parsed = parseReportText(rawText);
@@ -557,13 +569,13 @@ function AddReportModal({ visible, onClose, onSaveResults, memberId }) {
         valuesAdded:   totalValues,
         newMetrics:    totalNewMetrics,
         abnormalCount: totalAbnormal,
+        skippedDuplicates: totalSkippedDuplicates,
       });
       onClose();
       resetAll();
     }
   }
 
-  // ── WhatsApp image ───────────────────────────────────────────────────
   async function pickFromWhatsAppImage() {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) { Alert.alert('Permission needed', 'Please allow gallery access.'); return; }
@@ -575,7 +587,6 @@ function AddReportModal({ visible, onClose, onSaveResults, memberId }) {
     }
   }
 
-  // ── WhatsApp PDF ─────────────────────────────────────────────────────
   async function pickFromWhatsAppPDF() {
     try {
       const result = await DocumentPicker.getDocumentAsync({
@@ -615,18 +626,26 @@ function AddReportModal({ visible, onClose, onSaveResults, memberId }) {
     } catch { Alert.alert('Error', 'Could not open PDF.'); }
   }
 
-  // ── Save when user hits "Save all" on review screen ──────────────────
   async function handleSaveFromReview() {
     if (!editLab.trim()) { Alert.alert('Required', 'Please enter a lab name.'); return; }
 
-    // Branch 1: AI parsed multi-panel data — save through storage helper
     if (aiResult && Array.isArray(aiResult.panels) && aiResult.panels.length > 0) {
       const overrides = {
         labName:    editLab.trim(),
         reportDate: editDate || todayISO(),
       };
+
+      // Re-check duplicates with user's edited lab/date in case they changed something
+      try {
+        const dupCheck = await findExactDuplicateReports(aiResult, memberId, overrides);
+        if (dupCheck.allDuplicate) {
+          showDuplicateBlockedAlert(dupCheck.matches);
+          handleClose();
+          return;
+        }
+      } catch (e) { /* allow through */ }
+
       const saved = await saveLabReportFromAI(aiResult, memberId, overrides);
-      // Attach the uploaded image to each new report card
       if (image) await attachImageToLatestReports(saved.reportsSaved, image, memberId, fileType, fileName);
       onSaveResults({
         reportsSaved:  saved.reportsSaved,
@@ -638,7 +657,6 @@ function AddReportModal({ visible, onClose, onSaveResults, memberId }) {
       return;
     }
 
-    // Branch 2: AI failed — save as a single manual report
     if (!manualName.trim()) { Alert.alert('Required', 'Please enter a report name.'); return; }
     const fallback = {
       id:           Date.now().toString(),
@@ -672,7 +690,6 @@ function AddReportModal({ visible, onClose, onSaveResults, memberId }) {
     { emoji: '⌨️', title: 'Enter Manually',          desc: 'Type the report details yourself',                     action: () => setStep(2),         color: '#F3F4F6' },
   ];
 
-  // Detected panels list for the review screen
   const detectedPanels = aiResult?.panels || [];
 
   return (
@@ -724,14 +741,13 @@ function AddReportModal({ visible, onClose, onSaveResults, memberId }) {
                       </View>
                     )}
 
-                    <Text style={s.reviewHeading}>Review &amp; save</Text>
+                    <Text style={s.reviewHeading}>Review & save</Text>
                     <Text style={s.reviewSubhead}>
                       {detectedPanels.length > 0
                         ? 'We extracted these details. Edit if anything looks off.'
                         : 'Fill in the report details below.'}
                     </Text>
 
-                    {/* Editable Lab Name */}
                     <Text style={s.fieldLabel}>Lab Name</Text>
                     <TextInput
                       style={s.input}
@@ -740,7 +756,6 @@ function AddReportModal({ visible, onClose, onSaveResults, memberId }) {
                       onChangeText={setEditLab}
                     />
 
-                    {/* Editable Test Date */}
                     <Text style={s.fieldLabel}>Test Date</Text>
                     <TextInput
                       style={s.input}
@@ -752,7 +767,6 @@ function AddReportModal({ visible, onClose, onSaveResults, memberId }) {
                       <Text style={s.fieldHelp}>Found in document — used for trends</Text>
                     )}
 
-                    {/* If AI parsed panels: show them as read-only cards */}
                     {detectedPanels.length > 0 && (
                       <>
                         <Text style={[s.fieldLabel, { marginTop: 16 }]}>Panels Detected</Text>
@@ -780,7 +794,6 @@ function AddReportModal({ visible, onClose, onSaveResults, memberId }) {
                           );
                         })}
 
-                        {/* Auto-promotion notice */}
                         {aiResult?.abnormal_findings?.length > 0 && (
                           <View style={s.promoteNotice}>
                             <Text style={s.promoteText}>
@@ -791,7 +804,6 @@ function AddReportModal({ visible, onClose, onSaveResults, memberId }) {
                       </>
                     )}
 
-                    {/* If AI failed: show simple manual fields */}
                     {detectedPanels.length === 0 && (
                       <>
                         <Text style={s.fieldLabel}>Report Name</Text>
@@ -841,7 +853,6 @@ function AddReportModal({ visible, onClose, onSaveResults, memberId }) {
   );
 }
 
-// ── Helper: attach image URI to the most recently saved N reports ────
 async function attachImageToLatestReports(count, imageUri, memberId, fileType = 'image', fileName = '') {
   if (!count || !imageUri) return;
   try {
@@ -856,7 +867,6 @@ async function attachImageToLatestReports(count, imageUri, memberId, fileType = 
   } catch(e) { console.log('attachImage error:', e); }
 }
 
-// ── Main Screen ───────────────────────────────────────────────────────
 export default function ReportsScreen({ activeMember, navigation }) {
   const [reports, setReports]         = useState([]);
   const [activeCategory, setActive]   = useState('All');
@@ -871,13 +881,11 @@ export default function ReportsScreen({ activeMember, navigation }) {
 
   async function loadReports() {
     const saved = await getReports(memberId);
-    // Sort by test date (most recent first)
     saved.sort((a, b) => toIsoDate(b.date).localeCompare(toIsoDate(a.date)));
     setReports(saved);
   }
 
-  // Called by AddReportModal after a successful save
-  async function handleSaveResults({ reportsSaved, valuesAdded, newMetrics, abnormalCount }) {
+  async function handleSaveResults({ reportsSaved, valuesAdded, newMetrics, abnormalCount, skippedDuplicates }) {
     await loadReports();
     const newMetricLine = (newMetrics && newMetrics.length > 0)
       ? `\n\n📈 New metric${newMetrics.length > 1 ? 's' : ''} added to Trends:\n${newMetrics.map(m => `   • ${m.label}`).join('\n')}`
@@ -885,9 +893,18 @@ export default function ReportsScreen({ activeMember, navigation }) {
     const abnormalLine = abnormalCount > 0
       ? `\n⚠ ${abnormalCount} value${abnormalCount > 1 ? 's' : ''} flagged abnormal`
       : '';
+    const skippedLine = skippedDuplicates > 0
+      ? `\n⏭ ${skippedDuplicates} duplicate${skippedDuplicates > 1 ? 's' : ''} skipped`
+      : '';
+
+    if (reportsSaved === 0 && skippedDuplicates > 0) {
+      Alert.alert('Duplicate Reports', `All ${skippedDuplicates} document${skippedDuplicates > 1 ? 's were' : ' was'} already saved. Nothing new added.`);
+      return;
+    }
+
     Alert.alert(
       '✅ Saved',
-      `${reportsSaved} report${reportsSaved !== 1 ? 's' : ''} saved · ${valuesAdded} value${valuesAdded !== 1 ? 's' : ''} on timeline${abnormalLine}${newMetricLine}`,
+      `${reportsSaved} report${reportsSaved !== 1 ? 's' : ''} saved · ${valuesAdded} value${valuesAdded !== 1 ? 's' : ''} on timeline${abnormalLine}${skippedLine}${newMetricLine}`,
       [
         { text: 'Stay here', style: 'cancel' },
         ...(navigation ? [{ text: 'View Trends →', onPress: () => navigation.navigate('Timeline') }] : []),
@@ -912,7 +929,6 @@ export default function ReportsScreen({ activeMember, navigation }) {
     await saveReports(updated, memberId);
     setReports(updated);
     setEditLabVisible(false);
-    // If the viewer is open with this report, refresh it
     if (selectedReport && selectedReport.id === reportId) {
       setSelected({ ...selectedReport, lab: newLabName });
     }
@@ -985,7 +1001,7 @@ export default function ReportsScreen({ activeMember, navigation }) {
   );
 }
 
-// ── Styles ────────────────────────────────────────────────────────────
+// Styles
 const tr = StyleSheet.create({
   row:           { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: 12, borderTopWidth: 0.5, borderTopColor: '#E5E7EB' },
   left:          { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 },
