@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView,
+  View, Text, StyleSheet, ScrollView,ActivityIndicator,
   TouchableOpacity, SafeAreaView, Modal, TextInput, Alert
 } from 'react-native';
 import { getReports, getPrescriptions } from '../storage';
+import * as Location from 'expo-location';
 
 const TEAL    = '#0B8FAC';
 const TEAL_LT = '#E8F7FA';
@@ -137,15 +138,45 @@ export default function HomeScreen({
   const [showAddMember,  setShowAddMember]  = useState(false);
   const [activeMeds,     setActiveMeds]     = useState([]);
   const [activeMedCount, setActiveMedCount] = useState(0);
+const [fetchingLocation, setFetching] = useState(false);
 
   // Add member form state
+
   const [newName,     setNewName]     = useState('');
   const [newAge,      setNewAge]      = useState('');
   const [newGender,   setNewGender]   = useState('Male');
   const [newLocation, setNewLocation] = useState('');
   const [newRelation, setNewRelation] = useState('Spouse');
 
+
   useEffect(() => { loadHomeData(); }, [activeMember]);
+async function handleUseCurrentLocation() {
+    setFetching(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission required', 'Location access is needed. You can also type it manually.');
+        setFetching(false);
+        return;
+      }
+      const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const { latitude, longitude } = position.coords;
+      const addresses = await Location.reverseGeocodeAsync({ latitude, longitude });
+      if (addresses && addresses.length > 0) {
+        const addr = addresses[0];
+        const city = addr.city || addr.subregion || addr.district || '';
+        const state = addr.region || '';
+        const formatted = [city, state].filter(Boolean).join(', ') || 'Unknown';
+        setNewLocation(formatted);
+      } else {
+        Alert.alert('Could not determine location', 'Please type your city manually.');
+      }
+    } catch (e) {
+      console.log('Location error:', e);
+      Alert.alert('Could not get location', 'Make sure location services are enabled. You can also type it manually.');
+    }
+    setFetching(false);
+  }
 
   async function loadHomeData() {
     try {
@@ -357,6 +388,24 @@ export default function HomeScreen({
 
               <Text style={fm.fieldLabel}>Location</Text>
               <TextInput style={fm.input} placeholder="e.g. Chennai, Tamil Nadu" value={newLocation} onChangeText={setNewLocation} />
+             <TouchableOpacity
+                style={fm.locationBtn}
+                onPress={handleUseCurrentLocation}
+                disabled={fetchingLocation}
+                activeOpacity={0.7}
+              >
+                {fetchingLocation ? (
+                  <>
+                    <ActivityIndicator size="small" color={TEAL} />
+                    <Text style={fm.locationBtnText}>Detecting...</Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={fm.locationBtnIcon}>📍</Text>
+                    <Text style={fm.locationBtnText}>Use Current Location</Text>
+                  </>
+                )}
+              </TouchableOpacity>
 
               <Text style={fm.fieldLabel}>Relationship</Text>
               <View style={fm.chipRow}>
@@ -478,6 +527,9 @@ const fm = StyleSheet.create({
   addBtnText:      { fontSize: 15, fontWeight: '700', color: TEAL },
   fieldLabel:      { fontSize: 13, fontWeight: '700', color: DARK, marginBottom: 8 },
   input:           { borderWidth: 1.5, borderColor: '#E5E7EB', borderRadius: 12, padding: 14, fontSize: 14, color: DARK, marginBottom: 16, backgroundColor: '#FAFAFA' },
+locationBtn:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: TEAL_LT, borderRadius: 12, paddingVertical: 10, marginTop: -8, marginBottom: 16, gap: 8, borderWidth: 1, borderColor: TEAL },
+  locationBtnIcon:   { fontSize: 14 },
+  locationBtnText:   { fontSize: 13, fontWeight: '700', color: TEAL },
   chipRow:         { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
   chip:            { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#F3F4F6', borderWidth: 1.5, borderColor: '#E5E7EB' },
   chipActive:      { backgroundColor: TEAL_LT, borderColor: TEAL },
