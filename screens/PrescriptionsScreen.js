@@ -435,13 +435,60 @@ function AddRxModal({ visible, onClose, onSaveMultiple, memberId }) {
     }
   }
 
-  async function pickPDF() {
+async function pickPDF() {
     try {
       const result = await DocumentPicker.getDocumentAsync({ type: 'application/pdf', copyToCacheDirectory: true });
       if (!result.canceled && result.assets?.[0]) {
-        Alert.alert('📄 PDF Selected', 'PDF prescriptions — please enter drug details manually.', [
-          { text: 'Enter Manually', onPress: () => setStep(3) }
-        ]);
+        const asset = result.assets[0];
+        setHwMode(false);
+        setCurrentUri(asset.uri);
+        setScanning(true);
+        setStep(2);
+        try {
+          const formData = new FormData();
+          formData.append('file', { uri: asset.uri, type: 'application/pdf', name: asset.name || 'prescription.pdf' });
+          const aiResponse = await fetch(`${AI_SERVICE_URL}/ocr/prescription`, {
+            method: 'POST', headers: { 'Content-Type': 'multipart/form-data' }, body: formData,
+          });
+          const aiResult = await aiResponse.json();
+          if (aiResult.success && aiResult.drugs?.length > 0) {
+            const newRx = aiResult.drugs.map(d => {
+              const drugType = d.type || 'outpatient';
+              return {
+                id:          Date.now().toString() + Math.random() + d.drug_name,
+                drug:        d.drug_name || 'Unknown',
+                dose:        d.dosage || 'See prescription',
+                freq:        normalizeFreq(d.frequency),
+                freqLabel:   getFreqLabel(normalizeFreq(d.frequency)),
+                times:       getTimes(normalizeFreq(d.frequency)),
+                daysLeft:    parseInt(d.duration) || 30,
+                duration:    d.duration || '30 days',
+                handwritten: false,
+                type:        drugType,
+                notes:       d.notes || '',
+                route:       d.route || 'oral',
+                category:    d.category || 'Other',
+                active:      drugType === 'discharge' || drugType === 'outpatient',
+              };
+            });
+            const hospitalCount = newRx.filter(r => r.type === 'hospital').length;
+            const activeCount   = newRx.length - hospitalCount;
+            Alert.alert(
+              '✅ PDF Analyzed',
+              `Found ${newRx.length} medication(s):\n\n💊 Take Now: ${activeCount}\n🏥 Hospital History: ${hospitalCount}\n\nConfidence: ${aiResult.avg_confidence}%`,
+              [{ text: 'Save All', onPress: () => { onSaveMultiple(newRx); handleClose(); } }]
+            );
+          } else {
+            Alert.alert('No drugs found in PDF', 'Please enter manually.', [
+              { text: 'Enter Manually', onPress: () => { setScanning(false); setStep(3); } }
+            ]);
+          }
+        } catch(e) {
+          Alert.alert('PDF processing failed', 'Could not read PDF. Please enter manually.', [
+            { text: 'Enter Manually', onPress: () => { setScanning(false); setStep(3); } }
+          ]);
+        }
+        setScanning(false);
       }
     } catch { Alert.alert('Error', 'Could not open PDF.'); }
   }

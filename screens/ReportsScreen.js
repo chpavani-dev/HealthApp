@@ -400,7 +400,53 @@ function AddReportModal({ visible, onClose, onSaveResults, memberId }) {
     setEditLab(''); setEditDate('');
     setManualName(''); setManualLab(''); setManualCategory('Blood');
   }
+async function processPDFReport(asset) {
+    setImage(asset.uri);
+    setFileType('pdf');
+    setFileName(asset.name || 'document.pdf');
+    setScanning(true);
+    setStep(2);
 
+    try {
+      const formData = new FormData();
+      formData.append('file', { uri: asset.uri, type: 'application/pdf', name: asset.name || 'report.pdf' });
+      const aiResponse = await fetch(`${AI_SERVICE_URL}/ocr/report`, {
+        method: 'POST', headers: { 'Content-Type': 'multipart/form-data' }, body: formData,
+      });
+      const result = await aiResponse.json();
+      if (result.success && Array.isArray(result.panels) && result.panels.length > 0) {
+        // Duplicate check before review screen
+        try {
+          const dupCheck = await findExactDuplicateReports(result, memberId);
+          if (dupCheck.allDuplicate) {
+            setScanning(false);
+            showDuplicateBlockedAlert(dupCheck.matches);
+            handleClose();
+            return;
+          }
+        } catch (dupErr) {
+          console.log('Duplicate check error:', dupErr);
+        }
+        setAiResult(result);
+        setEditLab(result.lab_name || 'Unknown Lab');
+        setEditDate(result.report_date || todayISO());
+      } else {
+        Alert.alert(
+          'PDF parsed but no panels found',
+          'Please review or enter details manually below.'
+        );
+        setManualName((asset.name || 'Lab Report').replace('.pdf','').replace(/_/g,' '));
+        setEditLab('Unknown Lab');
+        setEditDate(todayISO());
+      }
+    } catch(e) {
+      Alert.alert('PDF processing failed', 'Could not read PDF. Please enter details manually.');
+      setManualName((asset.name || 'Lab Report').replace('.pdf','').replace(/_/g,' '));
+      setEditLab('Unknown Lab');
+      setEditDate(todayISO());
+    }
+    setScanning(false);
+  }
   async function processImage(uri, base64, type, fName) {
     setImage(uri);
     setFileType(type);
@@ -587,7 +633,7 @@ function AddReportModal({ visible, onClose, onSaveResults, memberId }) {
     }
   }
 
-  async function pickFromWhatsAppPDF() {
+ async function pickFromWhatsAppPDF() {
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: ['application/pdf', 'image/*'], copyToCacheDirectory: true,
@@ -595,16 +641,14 @@ function AddReportModal({ visible, onClose, onSaveResults, memberId }) {
       if (!result.canceled && result.assets?.[0]) {
         const asset = result.assets[0];
         const isPDF = asset.mimeType === 'application/pdf' || asset.name?.toLowerCase().endsWith('.pdf');
-        setImage(asset.uri);
-        setFileType(isPDF ? 'pdf' : 'image');
-        setFileName(asset.name || 'WhatsApp Document');
-        setManualName(asset.name?.replace('.pdf','').replace(/_/g,' ') || 'Lab Report');
-        setEditLab('Unknown Lab');
-        setEditDate(todayISO());
-        setStep(2);
-        setScanning(false);
         if (isPDF) {
-          Alert.alert('📄 PDF Selected', `File: ${asset.name}\n\nAI parsing for PDFs is limited — please review the details below before saving.`);
+          await processPDFReport(asset);
+        } else {
+          // Image from WhatsApp — use existing image path
+          setImage(asset.uri);
+          setFileType('image');
+          setFileName(asset.name || 'WhatsApp Document');
+          await processImage(asset.uri, null, 'image', asset.name);
         }
       }
     } catch(e) {
@@ -617,11 +661,7 @@ function AddReportModal({ visible, onClose, onSaveResults, memberId }) {
       const result = await DocumentPicker.getDocumentAsync({ type: 'application/pdf', copyToCacheDirectory: true });
       if (!result.canceled && result.assets?.[0]) {
         const asset = result.assets[0];
-        setImage(asset.uri); setFileType('pdf'); setFileName(asset.name);
-        setManualName(asset.name.replace('.pdf','').replace(/_/g,' '));
-        setEditLab('Unknown Lab');
-        setEditDate(todayISO());
-        setStep(2); setScanning(false);
+        await processPDFReport(asset);
       }
     } catch { Alert.alert('Error', 'Could not open PDF.'); }
   }
