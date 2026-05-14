@@ -89,7 +89,34 @@ function findFrequency(text) {
 function getFreqLabel(code) {
   return FREQ_OPTIONS.find(f => f.code === code)?.label || code;
 }
-
+// Convert any frequency notation (BD, TDS, 1-1-1, twice daily, etc.) to a canonical code (OD/BD/TDS/QID/HS/SOS/AC/PC)
+function normalizeFreq(rawFreq) {
+  if (!rawFreq) return 'OD';
+  const upper = String(rawFreq).toUpperCase().trim();
+  
+  // Numeric Indian notation (most common cause of bug)
+  if (upper === '1-1-1-1' || upper === '1/1/1/1')   return 'QID';
+  if (upper === '1-1-1'   || upper === '1/1/1')      return 'TDS';
+  if (upper === '1-0-1'   || upper === '1/0/1')      return 'BD';
+  if (upper === '0-0-1'   || upper === '0/0/1')      return 'HS';
+  if (upper === '1-0-0'   || upper === '1/0/0')      return 'OD';
+  if (upper === '0-1-0'   || upper === '0/1/0')      return 'OD';
+  
+  // Standard medical abbreviations  
+  if (['QID', 'Q.I.D', 'QDS', '4 TIMES'].includes(upper))            return 'QID';
+  if (['TDS', 'TID', 'T.D.S', '3 TIMES', 'THREE TIMES'].includes(upper)) return 'TDS';
+  if (['BD', 'BID', 'B.D', 'TWICE', 'TWICE DAILY'].includes(upper))  return 'BD';
+  if (['HS', 'H.S', 'BEDTIME', 'AT BEDTIME', 'NIGHT'].includes(upper)) return 'HS';
+  if (['SOS', 'S.O.S', 'PRN', 'AS NEEDED'].includes(upper))          return 'SOS';
+  if (['AC', 'A.C', 'BEFORE MEALS', 'BEFORE FOOD'].includes(upper))  return 'AC';
+  if (['PC', 'P.C', 'AFTER MEALS', 'AFTER FOOD'].includes(upper))    return 'PC';
+  if (['OD', 'O.D', 'ONCE', 'DAILY', 'ONCE DAILY'].includes(upper))  return 'OD';
+  
+  // Already a valid code? pass through
+  if (['OD','BD','TDS','QID','HS','SOS','AC','PC'].includes(upper)) return upper;
+  
+  return 'OD';
+}
 function getTimes(freq) {
   if (freq === 'BD')  return ['8:00 AM', '8:00 PM'];
   if (freq === 'TDS') return ['8:00 AM', '2:00 PM', '8:00 PM'];
@@ -319,9 +346,9 @@ function AddRxModal({ visible, onClose, onSaveMultiple, memberId }) {
                 id:          Date.now().toString() + Math.random() + d.drug_name,
               drug:        d.drug_name || 'Unknown',
                 dose:        d.dosage || 'See prescription',
-                freq:        d.frequency || 'OD',
-                freqLabel:   d.freq_label || getFreqLabel(d.frequency || 'OD'),
-                times:       d.times || getTimes(d.frequency || 'OD'),
+                freq:        normalizeFreq(d.frequency),
+                freqLabel:   getFreqLabel(normalizeFreq(d.frequency)),
+                times:       getTimes(normalizeFreq(d.frequency)),
                 daysLeft:    parseInt(d.duration) || 30,
                 duration:    d.duration || '30 days',
                 handwritten: isHandwritten,
@@ -427,9 +454,9 @@ function AddRxModal({ visible, onClose, onSaveMultiple, memberId }) {
         id:          Date.now().toString() + Math.random() + d.drug_name,
         drug:        d.drug_name || d.drug || 'Unknown',
         dose:        d.dosage || d.dose || 'See prescription',
-        freq:        d.frequency || d.freq || 'OD',
-        freqLabel:   d.freq_label || getFreqLabel(d.frequency || d.freq || 'OD'),
-        times:       d.times || getTimes(d.frequency || d.freq || 'OD'),
+        freq:        normalizeFreq(d.frequency || d.freq),
+        freqLabel:   getFreqLabel(normalizeFreq(d.frequency || d.freq)),
+        times:       getTimes(normalizeFreq(d.frequency || d.freq)),
         daysLeft:    parseInt(d.duration) || 30,
         duration:    d.duration || '30 days',
         handwritten: hwMode,
