@@ -39,10 +39,10 @@ Sentry.init({
 const Tab = createBottomTabNavigator();
 
 const TABS = [
-  { name: 'Home',          icon: '🏠' },
-  { name: 'Reports',       icon: '📋' },
-  { name: 'Prescriptions', icon: '💊' },
-  { name: 'Timeline',      icon: '📈' },
+  { name: 'Home',          label: 'Home',        icon: '🏠' },
+  { name: 'Reports',       label: 'Lab Reports', icon: '📋' },
+  { name: 'Prescriptions', label: 'My Meds',     icon: '💊' },
+  { name: 'Timeline',      label: 'Lab Trends',  icon: '📈' },
 ];
 
 function TabIcon({ name, focused }) {
@@ -66,8 +66,10 @@ function MainApp({ members, activeMember, onSwitchMember, onLogout, onUpdateMemb
           tabBarStyle: styles.tabBar,
           tabBarActiveTintColor: '#0B8FAC',
           tabBarInactiveTintColor: '#9CA3AF',
+tabBarLabel: TABS.find(t => t.name === route.name)?.label || route.name,
           tabBarIcon: ({ focused }) => (
             <TabIcon name={route.name} focused={focused} />
+
           ),
         })}
       >

@@ -216,10 +216,10 @@ async function handleUseCurrentLocation() {
 
   // Quick action cards — keep the 4 the user asked for
   const QUICK_ACTIONS = [
-    { emoji: '📤', title: 'Upload',  subtitle: 'Report or Rx',     bg: BLUE_LT,   action: () => navigation.navigate('Reports') },
-    { emoji: '💊', title: 'My Meds', subtitle: `${activeMedCount} active`,   bg: GREEN_LT,  action: () => navigation.navigate('Prescriptions') },
-    { emoji: '📈', title: 'Trends',  subtitle: 'Health timeline',   bg: PURPLE_LT, action: () => navigation.navigate('Timeline') },
-    { emoji: '👨‍👩‍👧', title: 'Family', subtitle: `${members.length} profile${members.length !== 1 ? 's' : ''}`, bg: PEACH_LT, action: () => setShowFamilyMgr(true) },
+    { emoji: '📤', title: 'Lab Reports', subtitle: 'Upload & view',     bg: BLUE_LT,   action: () => navigation.navigate('Reports') },
+    { emoji: '💊', title: 'My Meds',     subtitle: `${activeMedCount} active`,   bg: GREEN_LT,  action: () => navigation.navigate('Prescriptions') },
+    { emoji: '📈', title: 'Lab Trends',  subtitle: 'See your charts',   bg: PURPLE_LT, action: () => navigation.navigate('Timeline') },
+    { emoji: '👨‍👩‍👧', title: 'My Family',  subtitle: `${members.length} member${members.length !== 1 ? 's' : ''}`, bg: PEACH_LT, action: () => setShowFamilyMgr(true) },
   ];
 
  
