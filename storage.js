@@ -348,6 +348,51 @@ export async function findExactDuplicateReports(parsed, memberId, overrides = {}
   return { allDuplicate, totalPanels, duplicateCount, matches };
 }
 
+// ====================================================================
+// Duplicate detection for prescriptions
+// ====================================================================
+// Match on: drug name (lowercase, trimmed) + prescription date
+// Returns { allDuplicate, totalDrugs, duplicateCount, matches }
+// Mirrors findExactDuplicateReports for symmetric behavior.
+export async function findExactDuplicatePrescriptions(parsedDrugs, prescriptionDate, memberId) {
+  if (!Array.isArray(parsedDrugs) || parsedDrugs.length === 0) {
+    return { allDuplicate: false, totalDrugs: 0, duplicateCount: 0, matches: [] };
+  }
+
+  const rxDate = (prescriptionDate || '').trim();
+  if (!rxDate) {
+    // Without a date we can't be confident — don't block upload
+    return { allDuplicate: false, totalDrugs: parsedDrugs.length, duplicateCount: 0, matches: [] };
+  }
+
+  const existing = await getPrescriptions(memberId);
+  const matches  = [];
+
+  for (const d of parsedDrugs) {
+    const newName = (d.drug_name || d.drug || d.name || '').trim().toLowerCase();
+    if (!newName) continue;
+
+    const matched = existing.find(r =>
+      (r.drug || '').trim().toLowerCase() === newName &&
+      (r.prescriptionDate || r.rxDate || '').trim() === rxDate
+    );
+
+    if (matched) {
+      matches.push({
+        drugName:           d.drug_name || d.drug || d.name,
+        existingRxId:       matched.id,
+        existingDrugName:   matched.drug,
+      });
+    }
+  }
+
+  const totalDrugs     = parsedDrugs.length;
+  const duplicateCount = matches.length;
+  const allDuplicate   = duplicateCount === totalDrugs && totalDrugs > 0;
+
+  return { allDuplicate, totalDrugs, duplicateCount, matches };
+}
+
 // AI Lab Report Save
 export async function saveLabReportFromAI(parsed, memberId, overrides = {}) {
   if (!parsed || !Array.isArray(parsed.panels)) {

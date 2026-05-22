@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
-import { getPrescriptions, addPrescriptions, deletePrescription, togglePrescription } from '../storage';
+import { getPrescriptions, addPrescriptions, deletePrescription, togglePrescription, findExactDuplicatePrescriptions } from '../storage';
 
 const TEAL    = '#0B8FAC';
 const TEAL_LT = '#E8F7FA';
@@ -50,6 +50,14 @@ const FREQ_OPTIONS = [
   { code: 'AC',  label: 'Before meals' },
   { code: 'PC',  label: 'After meals' },
 ];
+function showDuplicatePrescriptionAlert(matches) {
+  const listLines = matches.map(m => `• ${m.existingDrugName}`).join('\n');
+  Alert.alert(
+    '⚠ Duplicate Prescription',
+    `This prescription has already been saved with the same drugs and date:\n\n${listLines}\n\nUpload cancelled. To replace, delete the existing prescription first.`,
+    [{ text: 'OK' }]
+  );
+}
 
 function findDrugName(text) {
   const upper = text.toUpperCase();
@@ -339,6 +347,24 @@ function AddRxModal({ visible, onClose, onSaveMultiple, memberId }) {
           });
           const aiResult = await aiResponse.json();
          if (aiResult.success && aiResult.drugs?.length > 0) {
+            // Duplicate check BEFORE saving
+            try {
+              const dupCheck = await findExactDuplicatePrescriptions(
+                aiResult.drugs,
+                aiResult.prescription_date,
+                memberId
+              );
+              if (dupCheck.allDuplicate) {
+                setScanning(false);
+                showDuplicatePrescriptionAlert(dupCheck.matches);
+                handleClose();
+                return;
+              }
+            } catch (dupErr) {
+              console.log('Rx duplicate check error:', dupErr);
+              // On error, allow upload to continue
+            }
+
             // Skip review modal — directly save with type field intact
             const newRx = aiResult.drugs.map(d => {
             const drugType = d.type || 'outpatient';
@@ -351,6 +377,7 @@ function AddRxModal({ visible, onClose, onSaveMultiple, memberId }) {
                 times:       getTimes(normalizeFreq(d.frequency)),
                 daysLeft:    parseInt(d.duration) || 30,
                 duration:    d.duration || '30 days',
+                prescriptionDate: aiResult.prescription_date || '',
                 handwritten: isHandwritten,
                 type:        drugType,
                 notes:       d.notes || '',
@@ -451,7 +478,24 @@ async function pickPDF() {
             method: 'POST', headers: { 'Content-Type': 'multipart/form-data' }, body: formData,
           });
           const aiResult = await aiResponse.json();
-          if (aiResult.success && aiResult.drugs?.length > 0) {
+       if (aiResult.success && aiResult.drugs?.length > 0) {
+            // Duplicate check BEFORE saving (PDF path)
+            try {
+              const dupCheck = await findExactDuplicatePrescriptions(
+                aiResult.drugs,
+                aiResult.prescription_date,
+                memberId
+              );
+              if (dupCheck.allDuplicate) {
+                setScanning(false);
+                showDuplicatePrescriptionAlert(dupCheck.matches);
+                handleClose();
+                return;
+              }
+            } catch (dupErr) {
+              console.log('Rx duplicate check error:', dupErr);
+            }
+
             const newRx = aiResult.drugs.map(d => {
               const drugType = d.type || 'outpatient';
               return {
@@ -463,6 +507,7 @@ async function pickPDF() {
                 times:       getTimes(normalizeFreq(d.frequency)),
                 daysLeft:    parseInt(d.duration) || 30,
                 duration:    d.duration || '30 days',
+                prescriptionDate: aiResult.prescription_date || '',
                 handwritten: false,
                 type:        drugType,
                 notes:       d.notes || '',
@@ -506,6 +551,7 @@ async function pickPDF() {
         times:       getTimes(normalizeFreq(d.frequency || d.freq)),
         daysLeft:    parseInt(d.duration) || 30,
         duration:    d.duration || '30 days',
+        prescriptionDate: aiResult.prescription_date || '',
         handwritten: hwMode,
         type:        drugType,
         notes:       d.notes || '',
