@@ -16,7 +16,7 @@ import {
   TextInput, KeyboardAvoidingView, Platform, ScrollView, SafeAreaView,
 } from 'react-native';
 import { Localization } from 'expo-localization';
-import { isValidPhoneNumber } from 'libphonenumber-js';
+import { isValidPhoneNumber } from 'libphonenumber-js/mobile';
 import CountryPicker, { COUNTRIES, getCountryByCode } from './CountryPicker';
 import { useAuth } from '../AuthContext';
 
