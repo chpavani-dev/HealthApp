@@ -4,8 +4,11 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StatusBar } from 'expo-status-bar';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { registerRootComponent } from 'expo';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AuthProvider, useAuth } from './AuthContext';
+import SupabaseLoginScreen      from './screens/SupabaseLoginScreen';
+import OTPScreen                from './screens/OTPScreen';
 import HomeScreen          from './screens/HomeScreen';
 import ReportsScreen       from './screens/ReportsScreen';
 import PrescriptionsScreen from './screens/PrescriptionsScreen';
@@ -66,7 +69,7 @@ function MainApp({ members, activeMember, onSwitchMember, onLogout, onUpdateMemb
           tabBarStyle: styles.tabBar,
           tabBarActiveTintColor: '#0B8FAC',
           tabBarInactiveTintColor: '#9CA3AF',
-tabBarLabel: TABS.find(t => t.name === route.name)?.label || route.name,
+
           tabBarIcon: ({ focused }) => (
             <TabIcon name={route.name} focused={focused} />
 
@@ -99,15 +102,32 @@ tabBarLabel: TABS.find(t => t.name === route.name)?.label || route.name,
   );
 }
 
-function App() {
+function AppInner() {
   const [loading, setLoading]           = useState(true);
   const [user, setUser]                 = useState(null);
   const [members, setMembers]           = useState([]);
   const [activeMember, setActiveMember] = useState(null);
+const [authStep, setAuthStep]   = useState('login');  // 'login' | 'otp'
+  const [authPhone, setAuthPhone] = useState('');
+  const { session: supabaseSession, signOut: supabaseSignOut } = useAuth();
 
   useEffect(() => {
     loadSavedData();
   }, []);
+// Bridge: when Supabase session arrives, populate existing user state
+  // so the rest of the app (ProfileScreen, MainApp) works unchanged.
+  useEffect(() => {
+    if (supabaseSession?.user && !user) {
+      const supaUser = supabaseSession.user;
+      const bridgedUser = {
+        id: supaUser.id,
+        phone: supaUser.phone,
+        supabaseId: supaUser.id,
+      };
+      setUser(bridgedUser);
+      AsyncStorage.setItem('user', JSON.stringify(bridgedUser));
+    }
+  }, [supabaseSession]);
 
   async function loadSavedData() {
     try {
@@ -140,9 +160,12 @@ function App() {
     await AsyncStorage.setItem('activeMember', JSON.stringify(member));
   }
 
-  async function handleLogout() {
+async function handleLogout() {
+    await supabaseSignOut();   // sign out from Supabase too
     await AsyncStorage.multiRemove(['user', 'members', 'activeMember']);
     setUser(null); setMembers([]); setActiveMember(null);
+    setAuthStep('login');
+    setAuthPhone('');
   }
 
   async function handleUpdateMembers(allMembers) {
@@ -160,7 +183,30 @@ function App() {
     );
   }
 
-  if (!user) {
+ if (!user) {
+    // Feature flag — set to false to use the old LoginScreen during transition
+    const USE_SUPABASE_AUTH = true;
+
+    if (USE_SUPABASE_AUTH) {
+      if (authStep === 'login') {
+        return (
+          <SupabaseLoginScreen
+            onCodeSent={(phoneE164) => {
+              setAuthPhone(phoneE164);
+              setAuthStep('otp');
+            }}
+          />
+        );
+      }
+      return (
+        <OTPScreen
+          phone={authPhone}
+          onChangeNumber={() => setAuthStep('login')}
+        />
+      );
+    }
+
+    // Fallback: old LoginScreen (kept temporarily for safety)
     return <LoginScreen onLogin={handleLogin} />;
   }
 
@@ -183,7 +229,14 @@ function App() {
     />
   );
 }
-
+// New wrapper that provides AuthContext to the entire app
+function App() {
+  return (
+    <AuthProvider>
+      <AppInner />
+    </AuthProvider>
+  );
+}
 const styles = StyleSheet.create({
   tabBar: {
     backgroundColor: '#FFFFFF',
