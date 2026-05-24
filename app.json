@@ -32,7 +32,8 @@
           "project": "med-record",
           "organization": "medrecord-r1"
         }
-      ]
+      ],
+      "expo-localization"
     ]
   }
 }

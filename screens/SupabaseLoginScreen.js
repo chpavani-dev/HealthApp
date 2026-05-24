@@ -1,22 +1,23 @@
 // ====================================================================
-// SupabaseLoginScreen — phone input with country picker
+// SupabaseLoginScreen — phone input with custom country picker
 // ====================================================================
 //
-// Auto-detects user's country from device locale, allows override
-// via country picker (flag dropdown). On valid phone + "Send OTP",
-// calls AuthContext.signInWithPhone(phoneE164).
+// Uses our own CountryPicker (~60 countries) and libphonenumber-js
+// for validation. Pure JS, no React 19 incompatibilities.
 //
 // Props:
 //   onCodeSent(phoneE164)  — called when OTP successfully sent.
 //                            Parent (App.js) advances to OTPScreen.
 // ====================================================================
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
-  KeyboardAvoidingView, Platform, ScrollView, SafeAreaView,
+  TextInput, KeyboardAvoidingView, Platform, ScrollView, SafeAreaView,
 } from 'react-native';
-import PhoneInput from 'react-native-phone-number-input';
+import { Localization } from 'expo-localization';
+import { isValidPhoneNumber } from 'libphonenumber-js';
+import CountryPicker, { COUNTRIES, getCountryByCode } from './CountryPicker';
 import { useAuth } from '../AuthContext';
 
 const TEAL    = '#0B8FAC';
@@ -27,25 +28,42 @@ const BG      = '#F5F7FA';
 const RED     = '#DC2626';
 const RED_LT  = '#FEE2E2';
 
+// Try to detect device's country, fall back to India
+function detectDefaultCountry() {
+  try {
+    // expo-localization may not be available — gracefully fall back
+    const region =
+      Localization?.region ||
+      Localization?.getLocales?.()[0]?.regionCode ||
+      'IN';
+    return getCountryByCode(region.toUpperCase());
+  } catch (e) {
+    return getCountryByCode('IN');
+  }
+}
+
 export default function SupabaseLoginScreen({ onCodeSent }) {
   const { signInWithPhone } = useAuth();
 
-  const phoneInputRef = useRef(null);
-  const [phoneNumber, setPhoneNumber]         = useState('');
-  const [formattedNumber, setFormattedNumber] = useState('');
-  const [loading, setLoading]                 = useState(false);
-  const [error, setError]                     = useState('');
+  const [country, setCountry]       = useState(() => detectDefaultCountry());
+  const [phoneLocal, setPhoneLocal] = useState('');       // local part user types
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [loading, setLoading]       = useState(false);
+  const [error, setError]           = useState('');
+
+  const formattedNumber = country.dial + phoneLocal.replace(/[^0-9]/g, '');
 
   async function handleSendOTP() {
     setError('');
 
-    const isValid = phoneInputRef.current?.isValidNumber(phoneNumber);
-    if (!isValid) {
-      setError('Please enter a valid phone number');
+    const cleaned = phoneLocal.replace(/[^0-9]/g, '');
+    if (!cleaned) {
+      setError('Please enter your phone number');
       return;
     }
-    if (!formattedNumber) {
-      setError('Phone number could not be formatted');
+
+    if (!isValidPhoneNumber(formattedNumber)) {
+      setError('That phone number doesn\'t look valid. Please check it.');
       return;
     }
 
@@ -58,7 +76,7 @@ export default function SupabaseLoginScreen({ onCodeSent }) {
       if (msg.toLowerCase().includes('rate limit')) {
         setError('Too many attempts. Please wait a minute and try again.');
       } else if (msg.toLowerCase().includes('invalid phone')) {
-        setError('That phone number isn\'t valid. Check the country code and number.');
+        setError('Phone number rejected by the server. Check the country code and number.');
       } else if (msg.toLowerCase().includes('network')) {
         setError('Network error. Check your internet connection.');
       } else {
@@ -67,10 +85,14 @@ export default function SupabaseLoginScreen({ onCodeSent }) {
       return;
     }
 
-    // Success — tell parent to show OTPScreen
     if (typeof onCodeSent === 'function') {
       onCodeSent(formattedNumber);
     }
+  }
+
+  function handleSelectCountry(c) {
+    setCountry(c);
+    setError('');
   }
 
   return (
@@ -97,22 +119,33 @@ export default function SupabaseLoginScreen({ onCodeSent }) {
             </Text>
 
             <Text style={styles.fieldLabel}>Phone number</Text>
-            <PhoneInput
-              ref={phoneInputRef}
-              defaultValue={phoneNumber}
-              defaultCode="IN"
-              layout="first"
-              onChangeText={setPhoneNumber}
-              onChangeFormattedText={setFormattedNumber}
-              autoFocus={false}
-              containerStyle={styles.phoneContainer}
-              textContainerStyle={styles.phoneTextContainer}
-              textInputStyle={styles.phoneTextInput}
-              codeTextStyle={styles.phoneCodeText}
-              flagButtonStyle={styles.phoneFlagButton}
-              countryPickerProps={{ withAlphaFilter: true, withCallingCode: true }}
-              disabled={loading}
-            />
+
+            <View style={styles.phoneRow}>
+              <TouchableOpacity
+                style={styles.countryBox}
+                onPress={() => setPickerOpen(true)}
+                activeOpacity={0.7}
+                disabled={loading}
+              >
+                <Text style={styles.flagText}>{country.flag}</Text>
+                <Text style={styles.dialText}>{country.dial}</Text>
+                <Text style={styles.chevron}>▾</Text>
+              </TouchableOpacity>
+
+              <TextInput
+                style={styles.phoneInput}
+                value={phoneLocal}
+                onChangeText={(v) => {
+                  setPhoneLocal(v.replace(/[^0-9]/g, ''));
+                  setError('');
+                }}
+                placeholder="Phone number"
+                placeholderTextColor={GRAY}
+                keyboardType="phone-pad"
+                editable={!loading}
+                maxLength={15}
+              />
+            </View>
 
             {error ? (
               <View style={styles.errorBox}>
@@ -143,6 +176,12 @@ export default function SupabaseLoginScreen({ onCodeSent }) {
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <CountryPicker
+        visible={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onSelect={handleSelectCountry}
+      />
     </SafeAreaView>
   );
 }
@@ -163,12 +202,17 @@ const styles = StyleSheet.create({
   subtitle:       { fontSize: 14, color: GRAY, marginTop: 6, marginBottom: 24, lineHeight: 20 },
   fieldLabel:     { fontSize: 13, fontWeight: '600', color: DARK, marginBottom: 8 },
 
-  phoneContainer:     { backgroundColor: '#F9FAFB', borderRadius: 12, borderWidth: 1.5,
-                        borderColor: '#E5E7EB', width: '100%', height: 56 },
-  phoneTextContainer: { backgroundColor: 'transparent', borderRadius: 12, paddingVertical: 0 },
-  phoneTextInput:     { fontSize: 16, color: DARK, height: 56 },
-  phoneCodeText:      { fontSize: 16, color: DARK, fontWeight: '600' },
-  phoneFlagButton:    { width: 76 },
+  // Phone row: country box + phone input
+  phoneRow:       { flexDirection: 'row', gap: 10 },
+  countryBox:     { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F9FAFB',
+                    borderRadius: 12, borderWidth: 1.5, borderColor: '#E5E7EB',
+                    paddingHorizontal: 12, height: 56, gap: 6 },
+  flagText:       { fontSize: 22 },
+  dialText:       { fontSize: 15, color: DARK, fontWeight: '600' },
+  chevron:        { fontSize: 10, color: GRAY, marginLeft: 2 },
+  phoneInput:     { flex: 1, backgroundColor: '#F9FAFB', borderRadius: 12, borderWidth: 1.5,
+                    borderColor: '#E5E7EB', paddingHorizontal: 14, height: 56,
+                    fontSize: 16, color: DARK },
 
   errorBox:       { backgroundColor: RED_LT, borderRadius: 10, padding: 12, marginTop: 16,
                     borderLeftWidth: 4, borderLeftColor: RED },
