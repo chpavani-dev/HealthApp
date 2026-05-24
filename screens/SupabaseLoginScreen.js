@@ -2,22 +2,20 @@
 // SupabaseLoginScreen — phone input with custom country picker
 // ====================================================================
 //
-// Uses our own CountryPicker (~60 countries) and libphonenumber-js
-// for validation. Pure JS, no React 19 incompatibilities.
+// Uses our own CountryPicker (~60 countries).
+// Validation: per-country expected digit length (covers ~95% of cases).
+// Twilio Verify catches any truly invalid numbers server-side anyway.
 //
 // Props:
 //   onCodeSent(phoneE164)  — called when OTP successfully sent.
-//                            Parent (App.js) advances to OTPScreen.
 // ====================================================================
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
   TextInput, KeyboardAvoidingView, Platform, ScrollView, SafeAreaView,
 } from 'react-native';
-import { Localization } from 'expo-localization';
-import { isValidPhoneNumber } from 'libphonenumber-js/mobile';
-import CountryPicker, { COUNTRIES, getCountryByCode } from './CountryPicker';
+import CountryPicker, { getCountryByCode } from './CountryPicker';
 import { useAuth } from '../AuthContext';
 
 const TEAL    = '#0B8FAC';
@@ -28,25 +26,48 @@ const BG      = '#F5F7FA';
 const RED     = '#DC2626';
 const RED_LT  = '#FEE2E2';
 
-// Try to detect device's country, fall back to India
-function detectDefaultCountry() {
-  try {
-    // expo-localization may not be available — gracefully fall back
-    const region =
-      Localization?.region ||
-      Localization?.getLocales?.()[0]?.regionCode ||
-      'IN';
-    return getCountryByCode(region.toUpperCase());
-  } catch (e) {
-    return getCountryByCode('IN');
-  }
+// Expected national digit length per country code.
+// 'min,max' as a range. Conservative — covers landlines + mobile.
+// For unknown countries, fall back to 7-15 (E.164 spec range).
+const EXPECTED_LENGTHS = {
+  IN: [10, 10],    US: [10, 10],    GB: [10, 11],
+  CA: [10, 10],    AU: [9, 9],      AE: [9, 9],
+  SG: [8, 8],      SA: [9, 9],      MY: [9, 10],
+  NZ: [8, 10],     DE: [10, 11],    FR: [9, 9],
+  IT: [9, 11],     ES: [9, 9],      NL: [9, 9],
+  CH: [9, 9],      SE: [7, 10],     NO: [8, 8],
+  DK: [8, 8],      FI: [9, 11],     IE: [9, 9],
+  BE: [9, 9],      AT: [10, 13],    PT: [9, 9],
+  PL: [9, 9],      CZ: [9, 9],      GR: [10, 10],
+  IL: [9, 9],      TR: [10, 10],    EG: [10, 10],
+  ZA: [9, 9],      NG: [10, 10],    KE: [9, 9],
+  JP: [10, 11],    KR: [9, 10],     CN: [11, 11],
+  HK: [8, 8],      TW: [9, 9],      TH: [9, 9],
+  VN: [9, 10],     PH: [10, 10],    ID: [9, 12],
+  PK: [10, 10],    BD: [10, 10],    LK: [9, 9],
+  NP: [10, 10],    BR: [10, 11],    MX: [10, 10],
+  AR: [10, 10],    CL: [9, 9],      CO: [10, 10],
+  RU: [10, 10],    UA: [9, 9],      QA: [8, 8],
+  KW: [8, 8],      BH: [8, 8],      OM: [8, 8],
+  JO: [9, 9],      LB: [7, 8],      MA: [9, 9],
+};
+
+function validatePhone(countryCode, localDigits) {
+  if (!localDigits || localDigits.length < 4) return false;
+  const range = EXPECTED_LENGTHS[countryCode] || [7, 15];
+  return localDigits.length >= range[0] && localDigits.length <= range[1];
+}
+
+// Default country — India (most common for our user base)
+function getDefaultCountry() {
+  return getCountryByCode('IN');
 }
 
 export default function SupabaseLoginScreen({ onCodeSent }) {
   const { signInWithPhone } = useAuth();
 
-  const [country, setCountry]       = useState(() => detectDefaultCountry());
-  const [phoneLocal, setPhoneLocal] = useState('');       // local part user types
+  const [country, setCountry]       = useState(() => getDefaultCountry());
+  const [phoneLocal, setPhoneLocal] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
   const [loading, setLoading]       = useState(false);
   const [error, setError]           = useState('');
@@ -62,8 +83,12 @@ export default function SupabaseLoginScreen({ onCodeSent }) {
       return;
     }
 
-    if (!isValidPhoneNumber(formattedNumber)) {
-      setError('That phone number doesn\'t look valid. Please check it.');
+    if (!validatePhone(country.code, cleaned)) {
+      const range = EXPECTED_LENGTHS[country.code] || [7, 15];
+      const expectedDesc = range[0] === range[1]
+        ? `${range[0]} digits`
+        : `${range[0]}\u2013${range[1]} digits`;
+      setError(`Please enter a valid ${country.name} phone number (${expectedDesc}).`);
       return;
     }
 
@@ -76,7 +101,7 @@ export default function SupabaseLoginScreen({ onCodeSent }) {
       if (msg.toLowerCase().includes('rate limit')) {
         setError('Too many attempts. Please wait a minute and try again.');
       } else if (msg.toLowerCase().includes('invalid phone')) {
-        setError('Phone number rejected by the server. Check the country code and number.');
+        setError('Phone number was rejected. Please check the country code and number.');
       } else if (msg.toLowerCase().includes('network')) {
         setError('Network error. Check your internet connection.');
       } else {
@@ -202,7 +227,6 @@ const styles = StyleSheet.create({
   subtitle:       { fontSize: 14, color: GRAY, marginTop: 6, marginBottom: 24, lineHeight: 20 },
   fieldLabel:     { fontSize: 13, fontWeight: '600', color: DARK, marginBottom: 8 },
 
-  // Phone row: country box + phone input
   phoneRow:       { flexDirection: 'row', gap: 10 },
   countryBox:     { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F9FAFB',
                     borderRadius: 12, borderWidth: 1.5, borderColor: '#E5E7EB',
