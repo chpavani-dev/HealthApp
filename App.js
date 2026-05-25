@@ -7,7 +7,7 @@ import { registerRootComponent } from 'expo';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthProvider, useAuth } from './AuthContext';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import SupabaseLoginScreen      from './screens/SupabaseLoginScreen';
 import OTPScreen                from './screens/OTPScreen';
 import HomeScreen          from './screens/HomeScreen';
@@ -57,17 +57,23 @@ function TabIcon({ name, focused }) {
     </View>
   );
 }
-
 function MainApp({ members, activeMember, onSwitchMember, onLogout, onUpdateMembers }) {
-  return (
-    <NavigationContainer>
+  const insets = useSafeAreaInsets();
+  return ( 
+   <NavigationContainer>
       <StatusBar style="dark" />
       <Tab.Navigator
         screenOptions={({ route }) => ({
           headerShown: false,
           tabBarShowLabel: true,
           tabBarLabelStyle: styles.tabLabel,
-          tabBarStyle: styles.tabBar,
+          tabBarStyle: [
+            styles.tabBar,
+            {
+              paddingBottom: insets.bottom + 8,
+              height: 60 + insets.bottom,
+            },
+          ],
           tabBarActiveTintColor: '#0B8FAC',
           tabBarInactiveTintColor: '#9CA3AF',
 
