@@ -1,23 +1,16 @@
 // ====================================================================
 // CountryPicker — searchable modal for selecting country code
 // ====================================================================
-//
-// Props:
-//   visible       (boolean)            — show/hide the modal
-//   onClose()                          — called when user dismisses
-//   onSelect(country)                  — called with selected country object
-//                                        { code, name, dial, flag }
-//
-// Uses a comprehensive list of ~60 countries covering India, US, UK,
-// Canada, Australia, EU, Middle East, SE Asia — the markets most
-// relevant to an Indian-family-focused app. Pure JS, no native deps.
+// v2: Uses SafeAreaView from react-native-safe-area-context with
+// edges prop to handle both iOS notch and Android gesture bar.
 // ====================================================================
 
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Modal, FlatList,
-  TextInput, SafeAreaView, KeyboardAvoidingView, Platform,
+  TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const TEAL    = '#0B8FAC';
 const TEAL_LT = '#E8F7FA';
@@ -25,7 +18,6 @@ const DARK    = '#111827';
 const GRAY    = '#6B7280';
 const BG      = '#F5F7FA';
 
-// Country list — code (ISO 3166-1 alpha-2), name, dial code, flag emoji
 export const COUNTRIES = [
   { code: 'IN', name: 'India',         dial: '+91',  flag: '🇮🇳' },
   { code: 'US', name: 'United States', dial: '+1',   flag: '🇺🇸' },
@@ -90,7 +82,7 @@ export const COUNTRIES = [
 ];
 
 export function getCountryByCode(code) {
-  return COUNTRIES.find(c => c.code === code) || COUNTRIES[0]; // default India
+  return COUNTRIES.find(c => c.code === code) || COUNTRIES[0];
 }
 
 export default function CountryPicker({ visible, onClose, onSelect }) {
@@ -124,7 +116,7 @@ export default function CountryPicker({ visible, onClose, onSelect }) {
       onRequestClose={handleClose}
       transparent={false}
     >
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}

@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  TextInput, SafeAreaView, ActivityIndicator,
+  TextInput, ActivityIndicator,
   KeyboardAvoidingView, Platform, Alert, Modal, ScrollView
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const TEAL  = '#0B8FAC';
 const DARK  = '#111827';
@@ -49,7 +50,7 @@ export default function LoginScreen({ onLogin }) {
   }
 
   return (
-    <SafeAreaView style={s.safe}>
+    <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         style={s.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

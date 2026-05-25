@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  SafeAreaView, Modal, TextInput, Alert, Image,
+  Modal, TextInput, Alert, Image,
   ActivityIndicator, Linking, Dimensions
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Sharing from 'expo-sharing';
@@ -979,7 +980,7 @@ export default function ReportsScreen({ activeMember, navigation }) {
     : reports.filter(r => r.category === activeCategory);
 
   return (
-    <SafeAreaView style={s.safe}>
+    <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
       <View style={s.header}>
         <View>
           <Text style={s.title}>Lab Reports</Text>

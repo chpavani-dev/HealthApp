@@ -1,25 +1,15 @@
 // ====================================================================
 // OTPScreen — 6-digit code verification
 // ====================================================================
-//
-// Props:
-//   phone            (E.164 format, e.g. '+919876543210')
-//   onChangeNumber() — called when user taps "Change number".
-//                      Parent (App.js) reverts to login screen.
-//
-// Auto-submits when 6 digits are entered.
-// Calls AuthContext.verifyOtp(phone, code) on Verify button.
-// Shows "Resend code" with 60s cooldown and 5min code expiry timer.
-//
-// On success: AuthContext.session updates automatically, App.js's
-// auth gate detects new session and routes to main app.
+// v2: SafeAreaView from react-native-safe-area-context with edges prop.
 // ====================================================================
 
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
-  TextInput, KeyboardAvoidingView, Platform, ScrollView, SafeAreaView,
+  TextInput, KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../AuthContext';
 
 const TEAL    = '#0B8FAC';
@@ -46,21 +36,18 @@ export default function OTPScreen({ phone, onChangeNumber }) {
 
   const inputsRef = useRef([]);
 
-  // Resend cooldown
   useEffect(() => {
     if (resendCooldown <= 0) return;
     const t = setInterval(() => setCooldown(c => c - 1), 1000);
     return () => clearInterval(t);
   }, [resendCooldown]);
 
-  // Code expiry
   useEffect(() => {
     if (codeExpiry <= 0) return;
     const t = setInterval(() => setCodeExpiry(e => e - 1), 1000);
     return () => clearInterval(t);
   }, [codeExpiry]);
 
-  // Auto-submit when 6 digits entered
   useEffect(() => {
     const full = code.join('');
     if (full.length === CODE_LENGTH && !loading) {
@@ -74,7 +61,6 @@ export default function OTPScreen({ phone, onChangeNumber }) {
     next[index] = cleaned;
     setCode(next);
     setError('');
-
     if (cleaned && index < CODE_LENGTH - 1) {
       inputsRef.current[index + 1]?.focus();
     }
@@ -88,12 +74,10 @@ export default function OTPScreen({ phone, onChangeNumber }) {
 
   async function handleVerify(fullCode) {
     setError('');
-
     if (!fullCode || fullCode.length !== CODE_LENGTH) {
       setError(`Please enter the ${CODE_LENGTH}-digit code`);
       return;
     }
-
     if (codeExpiry <= 0) {
       setError('Code expired. Please request a new one.');
       return;
@@ -117,24 +101,18 @@ export default function OTPScreen({ phone, onChangeNumber }) {
       inputsRef.current[0]?.focus();
       return;
     }
-
-    // SUCCESS — AuthContext picks up new session automatically.
-    // App.js's auth gate will route to MainApp.
   }
 
   async function handleResend() {
     if (resendCooldown > 0 || resending) return;
-
     setResending(true);
     setError('');
     const { error: authErr } = await signInWithPhone(phone);
     setResending(false);
-
     if (authErr) {
       setError(authErr.message || 'Could not resend code');
       return;
     }
-
     setCooldown(RESEND_COOLDOWN);
     setCodeExpiry(CODE_EXPIRY);
     setCode(Array(CODE_LENGTH).fill(''));
@@ -154,7 +132,7 @@ export default function OTPScreen({ phone, onChangeNumber }) {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -250,7 +228,7 @@ export default function OTPScreen({ phone, onChangeNumber }) {
 
 const styles = StyleSheet.create({
   safe:           { flex: 1, backgroundColor: BG },
-  scroll:         { flexGrow: 1, padding: 24, paddingTop: 60 },
+  scroll:         { flexGrow: 1, padding: 24, paddingTop: 60, paddingBottom: 40 },
 
   header:         { alignItems: 'center', marginBottom: 32 },
   headerEmoji:    { fontSize: 48, marginBottom: 8 },

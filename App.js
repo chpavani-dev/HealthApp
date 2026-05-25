@@ -7,6 +7,7 @@ import { registerRootComponent } from 'expo';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthProvider, useAuth } from './AuthContext';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import SupabaseLoginScreen      from './screens/SupabaseLoginScreen';
 import OTPScreen                from './screens/OTPScreen';
 import HomeScreen          from './screens/HomeScreen';
@@ -232,9 +233,11 @@ async function handleLogout() {
 // New wrapper that provides AuthContext to the entire app
 function App() {
   return (
-    <AuthProvider>
-      <AppInner />
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <AppInner />
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }
 const styles = StyleSheet.create({

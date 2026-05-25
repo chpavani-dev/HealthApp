@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, SafeAreaView, Dimensions, Modal, TextInput, Alert
+ TouchableOpacity, Dimensions, Modal, TextInput, Alert
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   getTimelineValues, getTrackedMetrics, addTrackedMetric,
   removeTrackedMetric, getAvailableMetrics, getTieredTrackedMetrics,
@@ -490,7 +491,7 @@ export default function TimelineScreen({ activeMember }) {
     : autoPromoted.filter(m => abnormalIds.has(m.id));
 
   return (
-    <SafeAreaView style={s.safe}>
+    <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
 
         <View style={s.header}>

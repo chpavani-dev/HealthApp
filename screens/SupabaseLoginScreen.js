@@ -1,20 +1,15 @@
 // ====================================================================
 // SupabaseLoginScreen — phone input with custom country picker
 // ====================================================================
-//
-// Uses our own CountryPicker (~60 countries).
-// Validation: per-country expected digit length (covers ~95% of cases).
-// Twilio Verify catches any truly invalid numbers server-side anyway.
-//
-// Props:
-//   onCodeSent(phoneE164)  — called when OTP successfully sent.
+// v5: SafeAreaView from react-native-safe-area-context with edges prop.
 // ====================================================================
 
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
-  TextInput, KeyboardAvoidingView, Platform, ScrollView, SafeAreaView,
+  TextInput, KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import CountryPicker, { getCountryByCode } from './CountryPicker';
 import { useAuth } from '../AuthContext';
 
@@ -26,9 +21,6 @@ const BG      = '#F5F7FA';
 const RED     = '#DC2626';
 const RED_LT  = '#FEE2E2';
 
-// Expected national digit length per country code.
-// 'min,max' as a range. Conservative — covers landlines + mobile.
-// For unknown countries, fall back to 7-15 (E.164 spec range).
 const EXPECTED_LENGTHS = {
   IN: [10, 10],    US: [10, 10],    GB: [10, 11],
   CA: [10, 10],    AU: [9, 9],      AE: [9, 9],
@@ -58,7 +50,6 @@ function validatePhone(countryCode, localDigits) {
   return localDigits.length >= range[0] && localDigits.length <= range[1];
 }
 
-// Default country — India (most common for our user base)
 function getDefaultCountry() {
   return getCountryByCode('IN');
 }
@@ -76,13 +67,11 @@ export default function SupabaseLoginScreen({ onCodeSent }) {
 
   async function handleSendOTP() {
     setError('');
-
     const cleaned = phoneLocal.replace(/[^0-9]/g, '');
     if (!cleaned) {
       setError('Please enter your phone number');
       return;
     }
-
     if (!validatePhone(country.code, cleaned)) {
       const range = EXPECTED_LENGTHS[country.code] || [7, 15];
       const expectedDesc = range[0] === range[1]
@@ -121,7 +110,7 @@ export default function SupabaseLoginScreen({ onCodeSent }) {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -213,7 +202,7 @@ export default function SupabaseLoginScreen({ onCodeSent }) {
 
 const styles = StyleSheet.create({
   safe:           { flex: 1, backgroundColor: BG },
-  scroll:         { flexGrow: 1, padding: 24, paddingTop: 60 },
+  scroll:         { flexGrow: 1, padding: 24, paddingTop: 60, paddingBottom: 40 },
 
   logoBox:        { alignItems: 'center', marginBottom: 32 },
   logoEmoji:      { fontSize: 56, marginBottom: 8 },

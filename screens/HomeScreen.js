@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,ActivityIndicator,
-  TouchableOpacity, SafeAreaView, Modal, TextInput, Alert
+  TouchableOpacity, Modal, TextInput, Alert
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { getReports, getPrescriptions } from '../storage';
 import * as Location from 'expo-location';
 
@@ -224,7 +225,7 @@ async function handleUseCurrentLocation() {
 
  
    return (
-    <SafeAreaView style={s.safe}>
+   <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
 
 

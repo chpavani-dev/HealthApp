@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  SafeAreaView, Modal, TextInput, Alert, Switch, ActivityIndicator
+ Modal, TextInput, Alert, Switch, ActivityIndicator
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { getPrescriptions, addPrescriptions, deletePrescription, togglePrescription, findExactDuplicatePrescriptions } from '../storage';
@@ -719,7 +720,7 @@ export default function PrescriptionsScreen({ activeMember }) {
   const refillCount = currentMeds.filter(m => (m.daysLeft || 30) <= 7).length;
 
   return (
-    <SafeAreaView style={s.safe}>
+    <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
       <View style={s.header}>
         <View>
           <Text style={s.title}>My Medications</Text>
