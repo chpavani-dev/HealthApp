@@ -10,6 +10,7 @@ import { AuthProvider, useAuth } from './AuthContext';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import SupabaseLoginScreen      from './screens/SupabaseLoginScreen';
 import OTPScreen                from './screens/OTPScreen';
+import { pullAllForUser } from './cloudSync';
 import HomeScreen          from './screens/HomeScreen';
 import ReportsScreen       from './screens/ReportsScreen';
 import PrescriptionsScreen from './screens/PrescriptionsScreen';
@@ -32,7 +33,7 @@ Sentry.init({
   enableLogs: true,
 
   // Configure Session Replay
-  replaysSessionSampleRate: 0.1,
+  replaysSessionSampleRate: 0.1,"bridgedUser"
   replaysOnErrorSampleRate: 1,
   integrations: [Sentry.mobileReplayIntegration(), Sentry.feedbackIntegration()],
 
@@ -133,6 +134,7 @@ const [authStep, setAuthStep]   = useState('login');  // 'login' | 'otp'
       };
       setUser(bridgedUser);
       AsyncStorage.setItem('user', JSON.stringify(bridgedUser));
+pullAllForUser(supaUser.id).then(() => loadSavedData()).catch(() => {});
     }
   }, [supabaseSession]);
 

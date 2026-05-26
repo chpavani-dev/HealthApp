@@ -1,7 +1,20 @@
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import {
+  pushFamilyMember,
+  pushLabReport,
+  pushPrescription,
+  pushTimelineEntry,
+  deleteLabReportCloud,
+  deletePrescriptionCloud,
+  deleteTimelineEntryCloud,
+} from './cloudSync';
+
+
+
 // Keys
-const key = (type, memberId) => `${type}_${memberId || 'default'}`;
+export const key = (type, memberId) => `${type}_${memberId || 'default'}`;
 
 // Default Tier 1 metrics (12)
 export const DEFAULT_TRACKED_METRICS = [
@@ -28,41 +41,36 @@ export async function addReport(report, memberId) {
   const existing = await getReports(memberId);
   const updated  = [report, ...existing];
   await saveReports(updated, memberId);
+  pushLabReport(report, memberId).catch(() => {});
   return updated;
 }
-
 export async function deleteReport(reportId, memberId) {
   const existing = await getReports(memberId);
   const updated  = existing.filter(r => r.id !== reportId);
   await saveReports(updated, memberId);
+  deleteLabReportCloud(reportId).catch(() => {});
   return updated;
 }
-
 // Prescriptions
-export async function getPrescriptions(memberId) {
-  try {
-    const data = await AsyncStorage.getItem(key('prescriptions', memberId));
-    return data ? JSON.parse(data) : [];
-  } catch { return []; }
+export async function addPrescriptions(newRxList, memberId) {
+  const existing = await getPrescriptions(memberId);
+  const updated  = [...newRxList, ...existing];
+  await savePrescriptions(updated, memberId);
+  for (const rx of newRxList) pushPrescription(rx, memberId).catch(() => {});
+  return updated;
 }
-
 export async function savePrescriptions(prescriptions, memberId) {
   try {
     await AsyncStorage.setItem(key('prescriptions', memberId), JSON.stringify(prescriptions));
   } catch (e) { console.log('Save prescriptions error:', e); }
 }
 
-export async function addPrescriptions(newRxList, memberId) {
-  const existing = await getPrescriptions(memberId);
-  const updated  = [...newRxList, ...existing];
-  await savePrescriptions(updated, memberId);
-  return updated;
-}
 
 export async function deletePrescription(rxId, memberId) {
   const existing = await getPrescriptions(memberId);
   const updated  = existing.filter(r => r.id !== rxId);
   await savePrescriptions(updated, memberId);
+  deletePrescriptionCloud(rxId).catch(() => {});
   return updated;
 }
 
@@ -70,9 +78,10 @@ export async function togglePrescription(rxId, memberId) {
   const existing = await getPrescriptions(memberId);
   const updated  = existing.map(r => r.id === rxId ? { ...r, active: !r.active } : r);
   await savePrescriptions(updated, memberId);
+  const toggled = updated.find(r => r.id === rxId);
+  if (toggled) pushPrescription(toggled, memberId).catch(() => {});
   return updated;
 }
-
 // Timeline values
 export async function getTimelineValues(memberId) {
   try {
@@ -94,9 +103,9 @@ export async function addTimelineEntry(metricId, value, date, memberId) {
   existing[metricId] = [...filtered, { date, value }]
     .sort((a, b) => new Date(a.date) - new Date(b.date));
   await saveTimelineValues(existing, memberId);
+  pushTimelineEntry(metricId, value, date, memberId).catch(() => {});
   return existing;
 }
-
 // Legacy regex OCR parser (kept for fallback)
 export async function parseAndSaveLabValues(rawText, date, memberId) {
   const metrics = [
