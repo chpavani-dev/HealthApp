@@ -33,7 +33,7 @@ Sentry.init({
   enableLogs: true,
 
   // Configure Session Replay
-  replaysSessionSampleRate: 0.1,"bridgedUser"
+  replaysSessionSampleRate: 0.1,
   replaysOnErrorSampleRate: 1,
   integrations: [Sentry.mobileReplayIntegration(), Sentry.feedbackIntegration()],
 
