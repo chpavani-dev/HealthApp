@@ -144,8 +144,18 @@ pullAllForUser(supaUser.id).then(() => loadSavedData()).catch(() => {});
       const savedMembers = await AsyncStorage.getItem('members');
       const savedActive  = await AsyncStorage.getItem('activeMember');
       if (savedUser)    setUser(JSON.parse(savedUser));
-      if (savedMembers) setMembers(JSON.parse(savedMembers));
-      if (savedActive)  setActiveMember(JSON.parse(savedActive));
+      
+      const parsedMembers = savedMembers ? JSON.parse(savedMembers) : [];
+      if (parsedMembers.length > 0) setMembers(parsedMembers);
+      
+      if (savedActive) {
+        setActiveMember(JSON.parse(savedActive));
+      } else if (parsedMembers.length > 0) {
+        // Auto-select first member if none selected (prevents 'default' bucket bug)
+        const firstMember = parsedMembers[0];
+        setActiveMember(firstMember);
+        await AsyncStorage.setItem('activeMember', JSON.stringify(firstMember));
+      }
     } catch (e) {
       console.log('Load error:', e);
     }
