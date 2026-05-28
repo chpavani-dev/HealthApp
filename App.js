@@ -10,7 +10,7 @@ import { AuthProvider, useAuth } from './AuthContext';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import SupabaseLoginScreen      from './screens/SupabaseLoginScreen';
 import OTPScreen                from './screens/OTPScreen';
-import { pullAllForUser } from './cloudSync';
+import { pullAllForUser, pushFamilyMember } from './cloudSync';
 import HomeScreen          from './screens/HomeScreen';
 import ReportsScreen       from './screens/ReportsScreen';
 import PrescriptionsScreen from './screens/PrescriptionsScreen';
@@ -161,6 +161,7 @@ pullAllForUser(supaUser.id).then(() => loadSavedData()).catch(() => {});
     setMembers(allMembers);
     setActiveMember(active);
     await AsyncStorage.setItem('members', JSON.stringify(allMembers));
+for (const m of allMembers) pushFamilyMember(m).catch(() => {});
     await AsyncStorage.setItem('activeMember', JSON.stringify(active));
   }
 
@@ -180,6 +181,7 @@ async function handleLogout() {
   async function handleUpdateMembers(allMembers) {
     setMembers(allMembers);
     await AsyncStorage.setItem('members', JSON.stringify(allMembers));
+for (const m of allMembers) pushFamilyMember(m).catch(() => {});
   }
 
   if (loading) {
