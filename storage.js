@@ -59,6 +59,12 @@ export async function addPrescriptions(newRxList, memberId) {
   for (const rx of newRxList) pushPrescription(rx, memberId).catch(() => {});
   return updated;
 }
+export async function getPrescriptions(memberId) {
+  try {
+    const data = await AsyncStorage.getItem(key('prescriptions', memberId));
+    return data ? JSON.parse(data) : [];
+  } catch { return []; }
+}
 export async function savePrescriptions(prescriptions, memberId) {
   try {
     await AsyncStorage.setItem(key('prescriptions', memberId), JSON.stringify(prescriptions));
