@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,ActivityIndicator,
-  TouchableOpacity, Modal, TextInput, Alert
+  TouchableOpacity, Modal, TextInput, Alert, Linking
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getReports, getPrescriptions } from '../storage';
+import { createInvite, buildWhatsAppShareMessage } from '../sharing';
 import * as Location from 'expo-location';
 
 const TEAL    = '#0B8FAC';
@@ -148,6 +149,47 @@ const [fetchingLocation, setFetching] = useState(false);
   const [newGender,   setNewGender]   = useState('Male');
   const [newLocation, setNewLocation] = useState('');
   const [newRelation, setNewRelation] = useState('Spouse');
+const [shareModalFor,    setShareModalFor]    = useState(null);
+  const [shareCode,        setShareCode]        = useState(null);
+  const [sharePhone,       setSharePhone]       = useState('');
+  const [sharePermission,  setSharePermission]  = useState('edit');
+  const [shareGenerating,  setShareGenerating]  = useState(false);
+
+async function handleGenerateInvite() {
+    if (!sharePhone || sharePhone.trim().length < 8) {
+      Alert.alert('Phone required', "Please enter the invitee's phone number with country code (e.g., +91...).");
+      return;
+    }
+    if (!shareModalFor) return;
+    setShareGenerating(true);
+    const result = await createInvite(shareModalFor.id, sharePhone.trim(), sharePermission);
+    setShareGenerating(false);
+    if (result.error) {
+      Alert.alert('Error', String(result.error));
+      return;
+    }
+    setShareCode(result.code);
+  }
+
+  async function handleShareViaWhatsApp() {
+    if (!shareCode || !shareModalFor) return;
+    const message = buildWhatsAppShareMessage(shareCode, shareModalFor.name);
+    const url = `whatsapp://send?text=${encodeURIComponent(message)}`;
+    const can = await Linking.canOpenURL(url);
+    if (can) {
+      Linking.openURL(url);
+    } else {
+      Alert.alert('WhatsApp not found', 'WhatsApp is not installed. Tap "Copy Code" to share via another app.');
+    }
+  }
+
+  function handleCloseShareModal() {
+    setShareModalFor(null);
+    setShareCode(null);
+    setSharePhone('');
+    setSharePermission('edit');
+    setShareGenerating(false);
+  }
 
 
   useEffect(() => { loadHomeData(); }, [activeMember]);
@@ -344,8 +386,16 @@ async function handleUseCurrentLocation() {
                       {activeMember?.id === m.id ? '✓ Active' : 'Select'}
                     </Text>
                   </TouchableOpacity>
+<TouchableOpacity
+  style={fm.shareBtn}
+  onPress={() => { setShareModalFor(m); }}
+>
+  <Text style={fm.shareBtnText}>📤</Text>
+</TouchableOpacity>
+
                 </View>
               ))}
+
               <TouchableOpacity
                 style={fm.addBtn}
                 onPress={() => { setShowFamilyMgr(false); setShowAddMember(true); }}
@@ -430,6 +480,85 @@ async function handleUseCurrentLocation() {
           </View>
         </View>
       </Modal>
+{/* ── Share Modal ── */}
+      <Modal visible={!!shareModalFor} animationType="slide" transparent onRequestClose={handleCloseShareModal}>
+        <View style={sm.overlay}>
+          <View style={sm.sheet}>
+            <View style={sm.handle} />
+            <View style={sm.header}>
+              <Text style={sm.title}>
+                {shareCode ? '✅ Invite Created' : `Share ${shareModalFor?.name || ''}'s Records`}
+              </Text>
+              <TouchableOpacity style={sm.closeBtn} onPress={handleCloseShareModal}>
+                <Text style={sm.closeBtnText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            {!shareCode ? (
+              <View style={sm.body}>
+                <Text style={sm.label}>Invitee's phone number</Text>
+                <TextInput
+                  style={sm.input}
+                  placeholder="+91 9876543210"
+                  placeholderTextColor="#9CA3AF"
+                  value={sharePhone}
+                  onChangeText={setSharePhone}
+                  keyboardType="phone-pad"
+                  autoCapitalize="none"
+                />
+                <Text style={sm.hint}>Include country code (e.g., +91 for India)</Text>
+
+                <Text style={[sm.label, { marginTop: 16 }]}>Permission level</Text>
+                {[
+                  { value: 'view',  label: 'View',  desc: 'Read-only access' },
+                  { value: 'edit',  label: 'Edit',  desc: 'Can add and edit records' },
+                  { value: 'admin', label: 'Admin', desc: 'Can edit and re-share' },
+                ].map(opt => (
+                  <TouchableOpacity
+                    key={opt.value}
+                    style={[sm.permRow, sharePermission === opt.value && sm.permRowActive]}
+                    onPress={() => setSharePermission(opt.value)}
+                  >
+                    <View style={[sm.radio, sharePermission === opt.value && sm.radioActive]}>
+                      {sharePermission === opt.value && <View style={sm.radioDot} />}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={sm.permLabel}>{opt.label}</Text>
+                      <Text style={sm.permDesc}>{opt.desc}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+
+                <TouchableOpacity
+                  style={[sm.primaryBtn, shareGenerating && { opacity: 0.6 }]}
+                  onPress={handleGenerateInvite}
+                  disabled={shareGenerating}
+                >
+                  {shareGenerating ? (
+                    <ActivityIndicator color="#FFF" />
+                  ) : (
+                    <Text style={sm.primaryBtnText}>Generate Invite Code</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={sm.body}>
+                <Text style={sm.codeHint}>Share this code with the invitee:</Text>
+                <View style={sm.codeBox}>
+                  <Text style={sm.codeText}>{shareCode}</Text>
+                </View>
+                <Text style={sm.codeExpiry}>Code expires in 7 days</Text>
+
+                <TouchableOpacity style={sm.primaryBtn} onPress={handleShareViaWhatsApp}>
+                  <Text style={sm.primaryBtnText}>📤 Share via WhatsApp</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={sm.secondaryBtn}
+                  onPress={() => Alert.alert('Code copied', `${shareCode}\n\n(Long-press to copy from clipboard)`)}
+                >
+                  <Text style={sm.secondaryBtnText}>Copy Code</Text>
+                </TouchableOpacity>
 
     </SafeAreaView>
   );
@@ -523,6 +652,8 @@ const fm = StyleSheet.create({
   selectBtn:       { backgroundColor: '#F3F4F6', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
   selectBtnActive: { backgroundColor: TEAL_LT },
   selectBtnText:   { fontSize: 12, fontWeight: '700', color: GRAY },
+  shareBtn:        { backgroundColor: '#F3F4F6', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6, marginLeft: 6 },
+  shareBtnText:    { fontSize: 16 },
   addBtn:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderRadius: 16, padding: 18, marginTop: 8, borderWidth: 2, borderColor: TEAL, borderStyle: 'dashed', gap: 10 },
   addBtnIcon:      { fontSize: 20 },
   addBtnText:      { fontSize: 15, fontWeight: '700', color: TEAL },
@@ -541,4 +672,34 @@ locationBtn:       { flexDirection: 'row', alignItems: 'center', justifyContent:
   cancelText:      { fontSize: 14, color: GRAY, fontWeight: '600' },
   saveBtn:         { flex: 1, padding: 15, borderRadius: 12, backgroundColor: TEAL, alignItems: 'center' },
   saveText:        { fontSize: 14, color: '#FFF', fontWeight: '700' },
+});
+const sm = StyleSheet.create({
+  overlay:        { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
+  sheet:          { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32, maxHeight: '85%' },
+  handle:         { width: 40, height: 4, backgroundColor: '#D1D5DB', borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
+  header:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+  title:          { fontSize: 18, fontWeight: '700', color: '#111827', flex: 1 },
+  closeBtn:       { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  closeBtnText:   { fontSize: 18, color: '#6B7280' },
+  body:           { paddingBottom: 8 },
+  label:          { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6 },
+  input:          { borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: '#111827', backgroundColor: '#F9FAFB' },
+  hint:           { fontSize: 12, color: '#9CA3AF', marginTop: 4 },
+  permRow:        { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F9FAFB', borderRadius: 10, padding: 12, marginTop: 8, borderWidth: 1, borderColor: 'transparent' },
+  permRowActive:  { borderColor: TEAL, backgroundColor: TEAL_LT },
+  radio:          { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: '#D1D5DB', marginRight: 12, alignItems: 'center', justifyContent: 'center' },
+  radioActive:    { borderColor: TEAL },
+  radioDot:       { width: 10, height: 10, borderRadius: 5, backgroundColor: TEAL },
+  permLabel:      { fontSize: 15, fontWeight: '600', color: '#111827' },
+  permDesc:       { fontSize: 12, color: '#6B7280', marginTop: 2 },
+  primaryBtn:     { backgroundColor: TEAL, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 20 },
+  primaryBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+  secondaryBtn:   { backgroundColor: '#F3F4F6', borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 10 },
+  secondaryBtnText:{ fontSize: 15, fontWeight: '600', color: '#374151' },
+  doneBtn:        { paddingVertical: 14, alignItems: 'center', marginTop: 6 },
+  doneBtnText:    { fontSize: 14, fontWeight: '600', color: '#6B7280' },
+  codeHint:       { fontSize: 14, color: '#6B7280', textAlign: 'center', marginBottom: 12 },
+  codeBox:        { backgroundColor: TEAL_LT, borderRadius: 12, paddingVertical: 24, paddingHorizontal: 16, alignItems: 'center', borderWidth: 2, borderColor: TEAL, borderStyle: 'dashed' },
+  codeText:       { fontSize: 28, fontWeight: '700', color: TEAL, letterSpacing: 2 },
+  codeExpiry:     { fontSize: 12, color: '#9CA3AF', textAlign: 'center', marginTop: 8 },
 });
