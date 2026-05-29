@@ -298,13 +298,10 @@ export async function getMyPermissionForMember(memberId) {
 // ====================================================================
 
 export function buildWhatsAppShareMessage(code, memberName) {
-  const playStoreUrl = 'https://play.google.com/store/apps/details?id=com.medrecord.app';
-  // TODO: replace with real Play Store URL once published
-
   return (
     `Hi! I've shared ${memberName ? memberName + "'s" : 'my'} health records with you on MedRecord.\n\n` +
-    `📲 Invite code: ${code}\n` +
-    `📥 Download: ${playStoreUrl}\n\n` +
-    `Open the app, login, then tap "Have an invite code?" and enter the code above.`
+    `📲 Invite code: ${code}\n\n` +
+    `Open the MedRecord app, login, then tap "Have an invite code?" and enter the code above.\n\n` +
+    `(Note: app is currently in beta. If you don't have it yet, please contact me for access.)`
   );
 }
