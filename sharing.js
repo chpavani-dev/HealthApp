@@ -1,10 +1,10 @@
 // ====================================================================
-// sharing.js — Family member sharing service
+// sharing.js — Family member sharing service (v2)
 // ====================================================================
 //
 // How it works:
 //   1. Owner creates an invite for a member → generates 6-char code MR-XXXXXX
-//   2. Owner shares code with invitee via WhatsApp (manual paste or share button)
+//   2. Owner shares code with invitee via WhatsApp
 //   3. Invitee enters code in app → creates member_shares row
 //
 // Permission levels:
@@ -12,9 +12,12 @@
 //   edit  — can add/edit records
 //   admin — can edit AND re-share with others
 //
-// Schema reminders:
-//   share_invites:  id, member_id, shared_by, invite_phone, permission,
-//                   token, status ('pending'|'accepted'|'expired'),
+// Phone format:
+//   Stored as digits-only (no + or spaces) to match auth.users.phone format
+//
+// Schema:
+//   share_invites:  id, member_id, shared_by, invite_phone (digits only),
+//                   permission, token, status ('pending'|'accepted'|'expired'),
 //                   expires_at, created_at, accepted_at
 //   member_shares:  id, member_id, shared_by, shared_with, permission,
 //                   status ('pending'|'active'|'revoked'),
@@ -24,7 +27,7 @@
 import { supabase } from './supabase';
 
 // ====================================================================
-// Code generation: MR-XXXXXX (8 chars, alphanumeric, uppercase)
+// Helpers
 // ====================================================================
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';  // no 0/O/I/1 confusion
@@ -35,6 +38,11 @@ function generateInviteCode() {
     code += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];
   }
   return code;
+}
+
+// Strip all non-digits — produces digits-only phone matching auth.users format
+function normalizePhone(phone) {
+  return (phone || '').replace(/\D/g, '');
 }
 
 async function getCurrentUserId() {
@@ -50,7 +58,7 @@ async function getCurrentUserPhone() {
 // ====================================================================
 // Create an invite
 //   memberId: family member to share access to
-//   invitePhone: who to invite (E.164 format like +919876543210)
+//   invitePhone: who to invite (any phone format accepted)
 //   permission: 'view' | 'edit' | 'admin'
 //
 // Returns { error, code, invite }
@@ -61,11 +69,13 @@ export async function createInvite(memberId, invitePhone, permission) {
   if (!userId) return { error: 'not_signed_in' };
   if (!memberId) return { error: 'no_member' };
   if (!invitePhone) return { error: 'no_phone' };
-// Normalize phone: strip non-digits to match auth.users format
-  const normalizedPhone = invitePhone.replace(/\D/g, '');
   if (!['view', 'edit', 'admin'].includes(permission)) {
     return { error: 'invalid_permission' };
   }
+
+  // Normalize phone: strip non-digits to match auth.users format
+  const normalizedPhone = normalizePhone(invitePhone);
+  if (normalizedPhone.length < 8) return { error: 'invalid_phone' };
 
   // Generate a unique code (retry if collision — extremely unlikely)
   let code, attempt = 0;
@@ -81,7 +91,6 @@ export async function createInvite(memberId, invitePhone, permission) {
   }
   if (attempt >= 5) return { error: 'code_generation_failed' };
 
-  // Insert the invite
   const { data, error } = await supabase
     .from('share_invites')
     .insert({
@@ -107,17 +116,7 @@ export async function createInvite(memberId, invitePhone, permission) {
 // Accept an invite by code
 // ====================================================================
 
-console.log('[sharing] acceptInvite token query:', { 
-    input: code, 
-    normalized, 
-    length: normalized.length 
-  });
-if (!invite) {
-    console.log('[sharing] acceptInvite: invite not found for token:', normalized);
-    return { error: 'not_found' };
-  }
-
-export async function acceptInvite(code) 
+export async function acceptInvite(code) {
   const userId = await getCurrentUserId();
   const userPhone = await getCurrentUserPhone();
   if (!userId) return { error: 'not_signed_in' };
@@ -139,11 +138,15 @@ export async function acceptInvite(code)
     return { error: 'find_failed' };
   }
 
-  if (!invite) return { error: 'not_found' };
+  if (!invite) {
+    return { error: 'not_found' };
+  }
 
-  // Check phone match (security: invite was for THIS phone)const normalize = (p) => (p || '').replace(/\D/g, '');
-  if (invite.invite_phone && userPhone && normalize(invite.invite_phone) !== normalize(userPhone)) {
-    return { error: 'phone_mismatch' };
+  // Check phone match (normalized — strip + and other formatting)
+  if (invite.invite_phone && userPhone) {
+    if (normalizePhone(invite.invite_phone) !== normalizePhone(userPhone)) {
+      return { error: 'phone_mismatch' };
+    }
   }
 
   // Check expiry
@@ -175,7 +178,7 @@ export async function acceptInvite(code)
     return { error: shareErr.message };
   }
 
-  // Mark invite as accepted
+  // Mark invite as accepted (best-effort)
   await supabase
     .from('share_invites')
     .update({ status: 'accepted', accepted_at: new Date().toISOString() })
@@ -185,7 +188,7 @@ export async function acceptInvite(code)
 }
 
 // ====================================================================
-// List invites I've created (for "Sharing" management screen)
+// List invites I've created (for management screen)
 // ====================================================================
 
 export async function listMyInvites() {
@@ -284,7 +287,6 @@ export async function getMyPermissionForMember(memberId) {
   const userId = await getCurrentUserId();
   if (!userId || !memberId) return null;
 
-  // Check if I own the member
   const { data: member } = await supabase
     .from('family_members')
     .select('owner_user_id')
@@ -293,7 +295,6 @@ export async function getMyPermissionForMember(memberId) {
 
   if (member?.owner_user_id === userId) return 'owner';
 
-  // Check if I have an active share
   const { data: share } = await supabase
     .from('member_shares')
     .select('permission')
