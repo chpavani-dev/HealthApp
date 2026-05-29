@@ -117,7 +117,7 @@ if (!invite) {
     return { error: 'not_found' };
   }
 
-export async function acceptInvite(code) {
+export async function acceptInvite(code) 
   const userId = await getCurrentUserId();
   const userPhone = await getCurrentUserPhone();
   if (!userId) return { error: 'not_signed_in' };
