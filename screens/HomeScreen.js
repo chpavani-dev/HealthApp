@@ -560,7 +560,7 @@ async function handleUseCurrentLocation() {
                   <Text style={sm.secondaryBtnText}>Copy Code</Text>
                 </TouchableOpacity>
 
-    </SafeAreaView>
+  </View>
   );
 }
 
@@ -702,4 +702,5 @@ const sm = StyleSheet.create({
   codeBox:        { backgroundColor: TEAL_LT, borderRadius: 12, paddingVertical: 24, paddingHorizontal: 16, alignItems: 'center', borderWidth: 2, borderColor: TEAL, borderStyle: 'dashed' },
   codeText:       { fontSize: 28, fontWeight: '700', color: TEAL, letterSpacing: 2 },
   codeExpiry:     { fontSize: 12, color: '#9CA3AF', textAlign: 'center', marginTop: 8 },
+}); 8 },
 });
