@@ -5,7 +5,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getReports, getPrescriptions } from '../storage';
-import { createInvite, buildWhatsAppShareMessage } from '../sharing';
+import { createInvite, acceptInvite, buildWhatsAppShareMessage } from '../sharing';
+import { pullAllForUser } from '../cloudSync';
+import { supabase } from '../supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 
 const TEAL    = '#0B8FAC';
@@ -152,6 +155,9 @@ const [fetchingLocation, setFetching] = useState(false);
 const [shareModalFor,    setShareModalFor]    = useState(null);
   const [shareCode,        setShareCode]        = useState(null);
   const [sharePhone,       setSharePhone]       = useState('');
+const [showAcceptModal, setShowAcceptModal] = useState(false);
+const [acceptCode, setAcceptCode] = useState('');
+const [acceptLoading, setAcceptLoading] = useState(false);
   const [sharePermission,  setSharePermission]  = useState('edit');
   const [shareGenerating,  setShareGenerating]  = useState(false);
 
@@ -233,6 +239,41 @@ async function handleUseCurrentLocation() {
       setActiveMedCount(active.length);
     } catch(e) { console.log('loadHomeData error:', e); }
   }
+async function handleAcceptInvite() {
+  if (!acceptCode || acceptCode.trim().length < 6) {
+    Alert.alert('Code required', 'Please enter the invite code.');
+    return;
+  }
+  setAcceptLoading(true);
+  const result = await acceptInvite(acceptCode);
+  setAcceptLoading(false);
+  
+  if (result.error) {
+    const errorMessages = {
+      not_found: 'Code not found or already used.',
+      phone_mismatch: 'This invite was for a different phone number.',
+      expired: 'This invite has expired.',
+      self_invite: "You can't accept your own invite.",
+    };
+    Alert.alert('Error', errorMessages[result.error] || `Could not accept: ${result.error}`);
+    return;
+  }
+  
+  // Success — pull the newly shared member into local
+  Alert.alert('✅ Success', 'Access granted! Pulling latest data...');
+  setShowAcceptModal(false);
+  setAcceptCode('');
+  
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.user?.id) {
+    await pullAllForUser(session.user.id);
+    // Tell parent to refresh
+    if (typeof onUpdateMembers === 'function') {
+      const updatedMembers = JSON.parse(await AsyncStorage.getItem('members') || '[]');
+      onUpdateMembers(updatedMembers);
+    }
+  }
+}
 
   async function handleAddMember() {
     if (!newName.trim()) { Alert.alert('Required', 'Please enter a name.'); return; }
@@ -409,6 +450,14 @@ async function handleUseCurrentLocation() {
           </View>
         </View>
       </Modal>
+<TouchableOpacity
+  style={[fm.addBtn, { borderColor: '#9CA3AF', marginTop: 8 }]}
+  onPress={() => { setShowFamilyMgr(false); setShowAcceptModal(true); }}
+  activeOpacity={0.8}
+>
+  <Text style={fm.addBtnIcon}>🔗</Text>
+  <Text style={[fm.addBtnText, { color: '#374151' }]}>Have an invite code?</Text>
+</TouchableOpacity>
 
       {/* ── Add Member Modal ── */}
       <Modal visible={showAddMember} animationType="slide" transparent>
@@ -565,6 +614,51 @@ async function handleUseCurrentLocation() {
                 </TouchableOpacity>
               </View>
             )}
+          </View>
+        </View>
+      </Modal>
+{/* ── Accept Invite Modal ── */}
+      <Modal visible={showAcceptModal} animationType="slide" transparent onRequestClose={() => setShowAcceptModal(false)}>
+        <View style={sm.overlay}>
+          <View style={sm.sheet}>
+            <View style={sm.handle} />
+            <View style={sm.header}>
+              <Text style={sm.title}>Enter Invite Code</Text>
+              <TouchableOpacity style={sm.closeBtn} onPress={() => { setShowAcceptModal(false); setAcceptCode(''); }}>
+                <Text style={sm.closeBtnText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={sm.body}>
+              <Text style={sm.label}>Invite code</Text>
+              <TextInput
+                style={[sm.input, { fontSize: 18, letterSpacing: 2, textAlign: 'center', fontWeight: '600' }]}
+                placeholder="MR-XXXXXX"
+                placeholderTextColor="#9CA3AF"
+                value={acceptCode}
+                onChangeText={(t) => setAcceptCode(t.toUpperCase())}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                maxLength={9}
+              />
+              <Text style={sm.hint}>Paste the code someone shared with you on WhatsApp.</Text>
+
+              <TouchableOpacity
+                style={[sm.primaryBtn, acceptLoading && { opacity: 0.6 }]}
+                onPress={handleAcceptInvite}
+                disabled={acceptLoading}
+              >
+                {acceptLoading ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <Text style={sm.primaryBtnText}>Accept Invite</Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity style={sm.doneBtn} onPress={() => { setShowAcceptModal(false); setAcceptCode(''); }}>
+                <Text style={sm.doneBtnText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
