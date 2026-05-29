@@ -61,6 +61,8 @@ export async function createInvite(memberId, invitePhone, permission) {
   if (!userId) return { error: 'not_signed_in' };
   if (!memberId) return { error: 'no_member' };
   if (!invitePhone) return { error: 'no_phone' };
+// Normalize phone: strip non-digits to match auth.users format
+  const normalizedPhone = invitePhone.replace(/\D/g, '');
   if (!['view', 'edit', 'admin'].includes(permission)) {
     return { error: 'invalid_permission' };
   }
@@ -85,7 +87,7 @@ export async function createInvite(memberId, invitePhone, permission) {
     .insert({
       member_id:    memberId,
       shared_by:    userId,
-      invite_phone: invitePhone,
+      invite_phone: normalizedPhone,
       permission,
       token:        code,
       status:       'pending',
@@ -104,6 +106,16 @@ export async function createInvite(memberId, invitePhone, permission) {
 // ====================================================================
 // Accept an invite by code
 // ====================================================================
+
+console.log('[sharing] acceptInvite token query:', { 
+    input: code, 
+    normalized, 
+    length: normalized.length 
+  });
+if (!invite) {
+    console.log('[sharing] acceptInvite: invite not found for token:', normalized);
+    return { error: 'not_found' };
+  }
 
 export async function acceptInvite(code) {
   const userId = await getCurrentUserId();
@@ -129,8 +141,8 @@ export async function acceptInvite(code) {
 
   if (!invite) return { error: 'not_found' };
 
-  // Check phone match (security: invite was for THIS phone)
-  if (invite.invite_phone && userPhone && invite.invite_phone !== userPhone) {
+  // Check phone match (security: invite was for THIS phone)const normalize = (p) => (p || '').replace(/\D/g, '');
+  if (invite.invite_phone && userPhone && normalize(invite.invite_phone) !== normalize(userPhone)) {
     return { error: 'phone_mismatch' };
   }
 
