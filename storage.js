@@ -1,5 +1,6 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Sentry from '@sentry/react-native';
 
 import {
   pushFamilyMember,
@@ -41,7 +42,11 @@ export async function addReport(report, memberId) {
   const existing = await getReports(memberId);
   const updated  = [report, ...existing];
   await saveReports(updated, memberId);
-  pushLabReport(report, memberId).catch(() => {});
+pushLabReport(report, memberId).then(r => {
+    if (r?.error) {
+      Sentry.captureMessage('pushLabReport error: ' + JSON.stringify(r.error), 'warning');
+    }
+  }).catch(e => Sentry.captureException(e));
   return updated;
 }
 export async function deleteReport(reportId, memberId) {
@@ -56,7 +61,13 @@ export async function addPrescriptions(newRxList, memberId) {
   const existing = await getPrescriptions(memberId);
   const updated  = [...newRxList, ...existing];
   await savePrescriptions(updated, memberId);
-  for (const rx of newRxList) pushPrescription(rx, memberId).catch(() => {});
+  for (const rx of newRxList) {
+    pushPrescription(rx, memberId).then(r => {
+      if (r?.error) {
+        Sentry.captureMessage('pushPrescription error: ' + JSON.stringify(r.error) + ' rxId: ' + rx.id, 'warning');
+      }
+    }).catch(e => Sentry.captureException(e));
+  }
   return updated;
 }
 export async function getPrescriptions(memberId) {
