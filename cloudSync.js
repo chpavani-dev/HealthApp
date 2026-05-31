@@ -298,7 +298,6 @@ async function pullMembers(userId) {
   const { data, error } = await supabase
     .from('family_members')
     .select('*')
-    .eq('owner_user_id', userId)
     .order('created_at', { ascending: true });
 
   if (error) {
