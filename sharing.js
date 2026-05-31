@@ -256,6 +256,30 @@ export async function listSharesWithMe() {
 }
 
 // ====================================================================
+// Cancel a pending invite (before it's accepted)
+// ====================================================================
+
+export async function cancelInvite(inviteId) {
+  const userId = await getCurrentUserId();
+  if (!userId) return { error: 'not_signed_in' };
+  if (!inviteId) return { error: 'no_invite_id' };
+
+  const { error } = await supabase
+    .from('share_invites')
+    .update({ status: 'cancelled' })
+    .eq('id', inviteId)
+    .eq('shared_by', userId);  // safety: only cancel my own invites
+
+  if (error) {
+    console.warn('[sharing] cancelInvite failed:', error.message);
+    return { error: error.message };
+  }
+
+  return { error: null };
+}
+
+
+// ====================================================================
 // Revoke a share (owner can revoke shares they granted)
 // ====================================================================
 

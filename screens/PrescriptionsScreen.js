@@ -7,6 +7,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { getPrescriptions, addPrescriptions, deletePrescription, togglePrescription, findExactDuplicatePrescriptions } from '../storage';
+import { usePermission } from '../PermissionContext';
+import ViewOnlyBanner from '../ViewOnlyBanner';
 
 const TEAL    = '#0B8FAC';
 const TEAL_LT = '#E8F7FA';
@@ -206,7 +208,7 @@ function parseAllDrugs(text) {
 }
 
 // ── RxCard ────────────────────────────────────────────────────────────────────
-function RxCard({ rx, onToggle, onPress, onDelete }) {
+function RxCard({ rx, onToggle, onPress, onDelete, canEdit = true }) {
   const u = urgency(rx.daysLeft);
   return (
     <View style={s.rxCard}>
@@ -227,25 +229,29 @@ function RxCard({ rx, onToggle, onPress, onDelete }) {
         </View>
         <Switch
           value={rx.active}
-          onValueChange={() => onToggle(rx.id)}
+          onValueChange={canEdit ? () => onToggle(rx.id) : undefined}
+          disabled={!canEdit}
           trackColor={{ false: '#E5E7EB', true: TEAL_LT }}
           thumbColor={rx.active ? TEAL : '#9CA3AF'}
         />
+
       </TouchableOpacity>
       <View style={s.rxBottom}>
         <View style={[s.refillBar, { backgroundColor: u.bg }]}>
           <View style={[s.refillDot, { backgroundColor: u.color }]} />
           <Text style={[s.refillLabel, { color: u.color }]}>{u.label}  ·  {u.tag}</Text>
         </View>
-        {rx.handwritten && <View style={s.hwBadge}><Text style={s.hwText}>✍️ Handwritten</Text></View>}
-        <TouchableOpacity style={s.rxDeleteBtn} onPress={() => {
-          Alert.alert('Delete', `Delete ${rx.drug}?`, [
-            { text: 'Cancel' },
-            { text: 'Delete', style: 'destructive', onPress: () => onDelete(rx.id) }
-          ]);
-        }}>
-          <Text style={s.rxDeleteText}>🗑️</Text>
-        </TouchableOpacity>
+     {rx.handwritten && <View style={s.hwBadge}><Text style={s.hwText}>✍️ Handwritten</Text></View>}
+        {canEdit && (
+          <TouchableOpacity style={s.rxDeleteBtn} onPress={() => {
+            Alert.alert('Delete', `Delete ${rx.drug}?`, [
+              { text: 'Cancel' },
+              { text: 'Delete', style: 'destructive', onPress: () => onDelete(rx.id) }
+            ]);
+          }}>
+            <Text style={s.rxDeleteText}>🗑️</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -685,6 +691,7 @@ export default function PrescriptionsScreen({ activeMember }) {
   const [tab, setTab]       = useState('current');
   const [showHospital, setShowHospital] = useState(false);
   const memberId = activeMember?.id || 'default';
+const { canEdit, isViewOnly } = usePermission();
 
   useEffect(() => { loadPrescriptions(); }, [activeMember]);
 
@@ -720,15 +727,18 @@ export default function PrescriptionsScreen({ activeMember }) {
   const refillCount = currentMeds.filter(m => (m.daysLeft || 30) <= 7).length;
 
   return (
-    <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
+ <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
+      <ViewOnlyBanner memberName={activeMember?.name} />
       <View style={s.header}>
         <View>
           <Text style={s.title}>My Medications</Text>
           <Text style={s.subtitle}>{currentMeds.length} active  ·  {hospitalMeds.length} hospital records</Text>
         </View>
-        <TouchableOpacity style={s.addBtn} onPress={() => setModal(true)}>
-          <Text style={s.addBtnText}>+ Add</Text>
-        </TouchableOpacity>
+       {canEdit && (
+          <TouchableOpacity style={s.addBtn} onPress={() => setModal(true)}>
+            <Text style={s.addBtnText}>+ Add</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {refillCount > 0 && (
@@ -748,7 +758,9 @@ export default function PrescriptionsScreen({ activeMember }) {
 
         {currentMeds.length === 0 && (
           <View style={s.emptyMini}>
-            <Text style={s.emptyMiniText}>No active medications. Tap + Add to start tracking.</Text>
+            <Text style={s.emptyMiniText}>
+              {canEdit ? 'No active medications. Tap + Add to start tracking.' : 'No active medications shared yet.'}
+            </Text>
           </View>
         )}
 
@@ -758,6 +770,7 @@ export default function PrescriptionsScreen({ activeMember }) {
             rx={rx}
             onToggle={handleToggle}
             onDelete={handleDelete}
+            canEdit={canEdit}
             onPress={() => Alert.alert(
               rx.drug,
               `Dose: ${rx.dose}\nFrequency: ${rx.freqLabel}\nTimes: ${rx.times.join(', ')}\nDuration: ${rx.duration || '30 days'}\nRoute: ${rx.route || 'Oral'}\n\nNotes: ${rx.notes || 'None'}`
@@ -778,6 +791,7 @@ export default function PrescriptionsScreen({ activeMember }) {
                 key={rx.id}
                 rx={rx}
                 onToggle={handleToggle}
+                canEdit={canEdit}
                 onDelete={handleDelete}
                 onPress={() => Alert.alert(rx.drug, `Currently paused.\nDose: ${rx.dose}`)}
               />
@@ -810,6 +824,7 @@ export default function PrescriptionsScreen({ activeMember }) {
                   <HospitalRxCard
                     key={rx.id}
                     rx={rx}
+                  canEdit={canEdit}
                     onDelete={handleDelete}
                     onPress={() => Alert.alert(
                       rx.drug,
@@ -836,7 +851,7 @@ export default function PrescriptionsScreen({ activeMember }) {
 }
 
 // ── Hospital Rx Card (read-only style) ──────────────────────────────────────
-function HospitalRxCard({ rx, onPress, onDelete }) {
+function HospitalRxCard({ rx, onPress, onDelete, canEdit = true }) {
   return (
     <TouchableOpacity style={s.hospitalCard} onPress={onPress} activeOpacity={0.7}>
       <View style={s.hospitalIconBox}>
@@ -847,15 +862,16 @@ function HospitalRxCard({ rx, onPress, onDelete }) {
         <Text style={s.hospitalDose}>{rx.dose}  ·  {rx.route?.toUpperCase() || 'IV'}</Text>
         {rx.notes && <Text style={s.hospitalNotes}>📝 {rx.notes}</Text>}
       </View>
-      <TouchableOpacity onPress={() => {
-        Alert.alert('Delete', `Remove ${rx.drug} from hospital history?`, [
-          { text: 'Cancel' },
-          { text: 'Delete', style: 'destructive', onPress: () => onDelete(rx.id) }
-        ]);
-      }}>
-        <Text style={s.hospitalDelete}>🗑️</Text>
-      </TouchableOpacity>
-    </TouchableOpacity>
+     {canEdit && (
+        <TouchableOpacity onPress={() => {
+          Alert.alert('Delete', `Remove ${rx.drug} from hospital history?`, [
+            { text: 'Cancel' },
+            { text: 'Delete', style: 'destructive', onPress: () => onDelete(rx.id) }
+          ]);
+        }}>
+          <Text style={s.hospitalDelete}>🗑️</Text>
+        </TouchableOpacity>
+      )}
   );
 }
 

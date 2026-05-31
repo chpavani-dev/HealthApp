@@ -5,7 +5,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getReports, getPrescriptions } from '../storage';
-import { createInvite, acceptInvite, buildWhatsAppShareMessage } from '../sharing';
+import { createInvite, acceptInvite, buildWhatsAppShareMessage, listSharesIveGranted, listMyInvites, listSharesWithMe, revokeShare, cancelInvite, getMyPermissionForMember } from '../sharing';
+import { usePermission } from '../PermissionContext';
 import { pullAllForUser } from '../cloudSync';
 import { supabase } from '../supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -138,6 +139,7 @@ export default function HomeScreen({
   navigation, members, activeMember,
   onSwitchMember, onLogout, onUpdateMembers
 }) {
+const { setPermission } = usePermission();
   const [showDropdown,   setShowDropdown]   = useState(false);
   const [showFamilyMgr,  setShowFamilyMgr]  = useState(false);
   const [showAddMember,  setShowAddMember]  = useState(false);
@@ -158,6 +160,12 @@ const [shareModalFor,    setShareModalFor]    = useState(null);
 const [showAcceptModal, setShowAcceptModal] = useState(false);
 const [acceptCode, setAcceptCode] = useState('');
 const [acceptLoading, setAcceptLoading] = useState(false);
+const [showManageModal,    setShowManageModal]    = useState(false);
+  const [grantedShares,      setGrantedShares]      = useState([]);
+  const [pendingInvites,     setPendingInvites]     = useState([]);
+  const [sharesWithMe,       setSharesWithMe]       = useState([]);
+  const [memberPermissions,  setMemberPermissions]  = useState({});  // {memberId: 'view'|'edit'|'admin'|'owner'}
+  const [manageLoading,      setManageLoading]      = useState(false);
   const [sharePermission,  setSharePermission]  = useState('edit');
   const [shareGenerating,  setShareGenerating]  = useState(false);
 
@@ -196,9 +204,80 @@ async function handleGenerateInvite() {
     setSharePermission('edit');
     setShareGenerating(false);
   }
+// ── Manage Shares Modal handlers ──
+  async function openManageShares() {
+    setShowFamilyMgr(false);
+    setShowManageModal(true);
+    setManageLoading(true);
 
+    const [g, i, sw] = await Promise.all([
+      listSharesIveGranted(),
+      listMyInvites(),
+      listSharesWithMe(),
+    ]);
+
+    setGrantedShares(g.shares || []);
+    setPendingInvites((i.invites || []).filter(inv => inv.status === 'pending'));
+    setSharesWithMe(sw.shares || []);
+    setManageLoading(false);
+  }
+
+  async function handleRevokeShare(shareId, memberName) {
+    Alert.alert(
+      'Revoke access?',
+      `Remove access to ${memberName || 'this member'}? The other person will no longer see records.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Revoke', style: 'destructive', onPress: async () => {
+          const result = await revokeShare(shareId);
+          if (result.error) {
+            Alert.alert('Error', `Could not revoke: ${result.error}`);
+            return;
+          }
+          setGrantedShares(prev => prev.filter(s => s.id !== shareId));
+        }},
+      ]
+    );
+  }
+
+  async function handleCancelInvite(inviteId, code) {
+    Alert.alert(
+      'Cancel invite?',
+      `Cancel code ${code}? The recipient won't be able to use it.`,
+      [
+        { text: 'Keep', style: 'cancel' },
+        { text: 'Cancel invite', style: 'destructive', onPress: async () => {
+          const result = await cancelInvite(inviteId);
+          if (result.error) {
+            Alert.alert('Error', `Could not cancel: ${result.error}`);
+            return;
+          }
+          setPendingInvites(prev => prev.filter(i => i.id !== inviteId));
+        }},
+      ]
+    );
+  }
+
+  // ── Permission loader: fetch permission for each member ──
+  async function loadMemberPermissions() {
+    if (!members || members.length === 0) return;
+    const perms = {};
+    for (const m of members) {
+      perms[m.id] = await getMyPermissionForMember(m.id);
+    }
+    setMemberPermissions(perms);
+  }
 
   useEffect(() => { loadHomeData(); }, [activeMember]);
+useEffect(() => { loadMemberPermissions(); }, [members]);
+useEffect(() => {
+    if (!activeMember?.id) {
+      setPermission('owner');
+      return;
+    }
+    const perm = memberPermissions[activeMember.id];
+    setPermission(perm || 'owner');
+  }, [activeMember, memberPermissions]);
 async function handleUseCurrentLocation() {
     setFetching(true);
     try {
@@ -415,7 +494,18 @@ async function handleAcceptInvite() {
                     </Text>
                   </View>
                   <View style={fm.memberInfo}>
-                    <Text style={fm.memberName}>{m.name}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Text style={fm.memberName}>{m.name}</Text>
+                      {memberPermissions[m.id] && memberPermissions[m.id] !== 'owner' && (
+                        <View style={fm.permBadge}>
+                          <Text style={fm.permBadgeText}>
+                            {memberPermissions[m.id] === 'view'  && '👁️ View'}
+                            {memberPermissions[m.id] === 'edit'  && '✏️ Edit'}
+                            {memberPermissions[m.id] === 'admin' && '💪 Admin'}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
                     <Text style={fm.memberSub}>{m.relation}  ·  {m.age} yrs  ·  {m.gender}</Text>
                     <Text style={fm.memberLoc}>📍 {m.location}</Text>
                   </View>
@@ -458,6 +548,15 @@ async function handleAcceptInvite() {
   <Text style={fm.addBtnIcon}>🔗</Text>
   <Text style={[fm.addBtnText, { color: '#374151' }]}>Have an invite code?</Text>
 </TouchableOpacity>
+
+<TouchableOpacity
+                style={[fm.addBtn, { borderColor: '#9CA3AF', marginTop: 8 }]}
+                onPress={openManageShares}
+                activeOpacity={0.8}
+              >
+                <Text style={fm.addBtnIcon}>⚙️</Text>
+                <Text style={[fm.addBtnText, { color: '#374151' }]}>Manage sharing</Text>
+              </TouchableOpacity>
 
       {/* ── Add Member Modal ── */}
       <Modal visible={showAddMember} animationType="slide" transparent>
@@ -662,6 +761,114 @@ async function handleAcceptInvite() {
           </View>
         </View>
       </Modal>
+{/* ── Manage Shares Modal ── */}
+      <Modal visible={showManageModal} animationType="slide" transparent onRequestClose={() => setShowManageModal(false)}>
+        <View style={sm.overlay}>
+          <View style={[sm.sheet, { maxHeight: '90%' }]}>
+            <View style={sm.handle} />
+            <View style={sm.header}>
+              <Text style={sm.title}>Sharing</Text>
+              <TouchableOpacity style={sm.closeBtn} onPress={() => setShowManageModal(false)}>
+                <Text style={sm.closeBtnText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            {manageLoading ? (
+              <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+                <ActivityIndicator color="#0B8FAC" />
+                <Text style={{ marginTop: 12, color: '#6B7280' }}>Loading shares...</Text>
+              </View>
+            ) : (
+              <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 600 }}>
+
+                {/* Section 1: Shares I've granted */}
+                <Text style={ms.sectionTitle}>MEMBERS I'VE SHARED</Text>
+                {grantedShares.length === 0 ? (
+                  <Text style={ms.emptyText}>You haven't shared any members yet.</Text>
+                ) : (
+                  grantedShares.map(share => {
+                    const member = members.find(m => m.id === share.member_id);
+                    return (
+                      <View key={share.id} style={ms.card}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={ms.cardTitle}>
+                            {member?.name || 'Unknown member'} · {share.permission}
+                          </Text>
+                          <Text style={ms.cardSub}>
+                            Accepted {share.accepted_at ? new Date(share.accepted_at).toLocaleDateString() : '—'}
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          style={ms.revokeBtn}
+                          onPress={() => handleRevokeShare(share.id, member?.name)}
+                        >
+                          <Text style={ms.revokeBtnText}>Revoke</Text>
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  })
+                )}
+
+                {/* Section 2: Pending invites */}
+                <Text style={[ms.sectionTitle, { marginTop: 20 }]}>PENDING INVITES</Text>
+                {pendingInvites.length === 0 ? (
+                  <Text style={ms.emptyText}>No pending invites.</Text>
+                ) : (
+                  pendingInvites.map(inv => {
+                    const member = members.find(m => m.id === inv.member_id);
+                    const expiresIn = inv.expires_at
+                      ? Math.max(0, Math.ceil((new Date(inv.expires_at) - new Date()) / (1000 * 60 * 60 * 24)))
+                      : null;
+                    return (
+                      <View key={inv.id} style={ms.card}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={ms.cardTitle}>
+                            Code: {inv.token}
+                          </Text>
+                          <Text style={ms.cardSub}>
+                            For: +{inv.invite_phone} · {inv.permission}
+                            {expiresIn !== null && ` · expires in ${expiresIn} day${expiresIn !== 1 ? 's' : ''}`}
+                          </Text>
+                          <Text style={ms.cardSub}>
+                            Member: {member?.name || 'Unknown'}
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          style={ms.cancelBtn}
+                          onPress={() => handleCancelInvite(inv.id, inv.token)}
+                        >
+                          <Text style={ms.cancelBtnText}>Cancel</Text>
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  })
+                )}
+
+                {/* Section 3: Shared with me */}
+                <Text style={[ms.sectionTitle, { marginTop: 20 }]}>SHARED WITH ME</Text>
+                {sharesWithMe.length === 0 ? (
+                  <Text style={ms.emptyText}>No one has shared records with you yet.</Text>
+                ) : (
+                  sharesWithMe.map(share => (
+                    <View key={share.id} style={ms.card}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={ms.cardTitle}>
+                          {share.family_members?.name || 'Shared member'} · {share.permission}
+                        </Text>
+                        <Text style={ms.cardSub}>
+                          Accepted {share.accepted_at ? new Date(share.accepted_at).toLocaleDateString() : '—'}
+                        </Text>
+                      </View>
+                    </View>
+                  ))
+                )}
+
+                <View style={{ height: 20 }} />
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
  </SafeAreaView>
   );
 }
@@ -759,6 +966,8 @@ const fm = StyleSheet.create({
   addBtn:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderRadius: 16, padding: 18, marginTop: 8, borderWidth: 2, borderColor: TEAL, borderStyle: 'dashed', gap: 10 },
   addBtnIcon:      { fontSize: 20 },
   addBtnText:      { fontSize: 15, fontWeight: '700', color: TEAL },
+permBadge:       { backgroundColor: TEAL_LT, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, marginLeft: 8 },
+  permBadgeText:   { fontSize: 11, fontWeight: '600', color: TEAL },
   fieldLabel:      { fontSize: 13, fontWeight: '700', color: DARK, marginBottom: 8 },
   input:           { borderWidth: 1.5, borderColor: '#E5E7EB', borderRadius: 12, padding: 14, fontSize: 14, color: DARK, marginBottom: 16, backgroundColor: '#FAFAFA' },
 locationBtn:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: TEAL_LT, borderRadius: 12, paddingVertical: 10, marginTop: -8, marginBottom: 16, gap: 8, borderWidth: 1, borderColor: TEAL },
@@ -804,4 +1013,15 @@ const sm = StyleSheet.create({
   codeBox:        { backgroundColor: TEAL_LT, borderRadius: 12, paddingVertical: 24, paddingHorizontal: 16, alignItems: 'center', borderWidth: 2, borderColor: TEAL, borderStyle: 'dashed' },
   codeText:       { fontSize: 28, fontWeight: '700', color: TEAL, letterSpacing: 2 },
   codeExpiry:     { fontSize: 12, color: '#9CA3AF', textAlign: 'center', marginTop: 8 },
+});
+const ms = StyleSheet.create({
+  sectionTitle:    { fontSize: 11, fontWeight: '700', color: '#6B7280', letterSpacing: 1, marginTop: 4, marginBottom: 10 },
+  emptyText:       { fontSize: 14, color: '#9CA3AF', fontStyle: 'italic', paddingVertical: 8 },
+  card:            { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F9FAFB', borderRadius: 10, padding: 12, marginBottom: 8 },
+  cardTitle:       { fontSize: 14, fontWeight: '600', color: '#111827', marginBottom: 2 },
+  cardSub:         { fontSize: 12, color: '#6B7280' },
+  revokeBtn:       { backgroundColor: '#FEE2E2', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, marginLeft: 8 },
+  revokeBtnText:   { fontSize: 12, fontWeight: '700', color: '#DC2626' },
+  cancelBtn:       { backgroundColor: '#FEF3C7', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, marginLeft: 8 },
+  cancelBtnText:   { fontSize: 12, fontWeight: '700', color: '#D97706' },
 });

@@ -8,10 +8,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Sharing from 'expo-sharing';
+import { usePermission } from '../PermissionContext';
 import {
   getReports, addReport, deleteReport, parseAndSaveLabValues,
   saveLabReportFromAI, saveReports, findExactDuplicateReports
 } from '../storage';
+import ViewOnlyBanner from '../ViewOnlyBanner';
 
 const { width } = Dimensions.get('window');
 const TEAL    = '#0B8FAC';
@@ -127,7 +129,7 @@ function TestRow({ test }) {
   );
 }
 
-function ReportViewer({ report, visible, onClose, onDelete, onEditLab }) {
+function ReportViewer({ report, visible, onClose, onDelete, onEditLab, canEdit = true }) {
   if (!report) return null;
 
   const tests        = report.tests || [];
@@ -228,6 +230,7 @@ function ReportViewer({ report, visible, onClose, onDelete, onEditLab }) {
                 }
               }}>
                 <Text style={v.shareBtnText}>💬 Share on WhatsApp</Text>
+            {canEdit && (
               </TouchableOpacity>
               <TouchableOpacity style={v.deleteBtn} onPress={() => {
                 Alert.alert('Delete Report', `Delete "${report.name}"?`, [
@@ -237,6 +240,7 @@ function ReportViewer({ report, visible, onClose, onDelete, onEditLab }) {
               }}>
                 <Text style={v.deleteBtnText}>🗑️ Delete Report</Text>
               </TouchableOpacity>
+             )}
             </View>
             <View style={{ height: 40 }} />
           </ScrollView>
@@ -291,7 +295,7 @@ function CategoryPill({ label, active, onPress }) {
   );
 }
 
-function ReportCard({ report, onPress, onDelete }) {
+function ReportCard({ report, onPress, onDelete, canEdit = true }) {
   const color = CAT_COLORS[report.category] || GRAY;
   const abnormalCount = report.abnormalCount ?? 0;
   const testCount     = report.testCount    ?? (report.tests?.length ?? 0);
@@ -329,15 +333,16 @@ function ReportCard({ report, onPress, onDelete }) {
         <View style={s.cardActions}>
           <TouchableOpacity style={s.viewBtn} onPress={onPress}>
             <Text style={s.viewBtnText}>👁 View</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={s.deleteCardBtn} onPress={() => {
-            Alert.alert('Delete Report', `Delete "${report.name}"?`, [
-              { text: 'Cancel' },
-              { text: 'Delete', style: 'destructive', onPress: () => onDelete(report.id) }
-            ]);
-          }}>
-            <Text style={s.deleteCardBtnText}>🗑️ Delete</Text>
-          </TouchableOpacity>
+        {canEdit && (
+            <TouchableOpacity style={s.deleteCardBtn} onPress={() => {
+              Alert.alert('Delete Report', `Delete "${report.name}"?`, [
+                { text: 'Cancel' },
+                { text: 'Delete', style: 'destructive', onPress: () => onDelete(report.id) }
+              ]);
+            }}>
+              <Text style={s.deleteCardBtnText}>🗑️ Delete</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
       {report.image && report.type === 'image' && (
@@ -917,6 +922,7 @@ export default function ReportsScreen({ activeMember, navigation }) {
   const [editLabReport, setEditLabReport] = useState(null);
   const [editLabVisible, setEditLabVisible] = useState(false);
   const memberId = activeMember?.id || 'default';
+const { canEdit, isViewOnly } = usePermission();
 
   useEffect(() => { loadReports(); }, [activeMember]);
 
@@ -980,15 +986,18 @@ export default function ReportsScreen({ activeMember, navigation }) {
     : reports.filter(r => r.category === activeCategory);
 
   return (
-    <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
+   <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
+      <ViewOnlyBanner memberName={activeMember?.name} />
       <View style={s.header}>
         <View>
           <Text style={s.title}>Lab Reports</Text>
           <Text style={s.subtitle}>{reports.length} reports  {activeMember ? `· ${activeMember.name}` : ''}</Text>
         </View>
-        <TouchableOpacity style={s.uploadBtn} onPress={() => setModal(true)}>
-          <Text style={s.uploadBtnText}>+ Upload</Text>
-        </TouchableOpacity>
+        {canEdit && (
+          <TouchableOpacity style={s.uploadBtn} onPress={() => setModal(true)}>
+            <Text style={s.uploadBtnText}>+ Upload</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={s.searchBar}>
@@ -1007,13 +1016,17 @@ export default function ReportsScreen({ activeMember, navigation }) {
           <View style={s.empty}>
             <Text style={s.emptyEmoji}>📂</Text>
             <Text style={s.emptyTitle}>No reports yet</Text>
-            <Text style={s.emptyText}>Tap + Upload to add your first lab report</Text>
+            <Text style={s.emptyText}>
+              {canEdit ? 'Tap + Upload to add your first lab report' : 'No reports shared yet'}
+            </Text>
           </View>
         )}
         {filtered.map(r => (
-          <ReportCard key={r.id} report={r}
+         <ReportCard key={r.id} report={r}
+            canEdit={canEdit}
             onPress={() => { setSelected(r); setViewer(true); }}
             onDelete={handleDelete}
+          />
           />
         ))}
         <View style={{ height: 90 }} />
@@ -1031,6 +1044,7 @@ export default function ReportsScreen({ activeMember, navigation }) {
         onClose={() => setViewer(false)}
         onDelete={handleDelete}
         onEditLab={handleOpenEditLab}
+        canEdit={canEdit}
       />
       <EditLabModal
         report={editLabReport}
