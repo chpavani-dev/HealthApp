@@ -250,7 +250,7 @@ for (const m of allMembers) pushFamilyMember(m).catch(() => {});
       onLogout={handleLogout}
       onUpdateMembers={handleUpdateMembers}
     />
-<PermissionProvider>
+</PermissionProvider>
   );
 }
 // New wrapper that provides AuthContext to the entire app
