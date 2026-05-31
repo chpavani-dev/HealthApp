@@ -1028,7 +1028,6 @@ const { canEdit, isViewOnly } = usePermission();
             onPress={() => { setSelected(r); setViewer(true); }}
             onDelete={handleDelete}
           />
-          />
         ))}
         <View style={{ height: 90 }} />
       </ScrollView>
