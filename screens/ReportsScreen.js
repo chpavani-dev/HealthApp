@@ -331,9 +331,10 @@ function ReportCard({ report, onPress, onDelete, canEdit = true }) {
           <Text style={s.testCountLine}>{testCount} test{testCount !== 1 ? 's' : ''}</Text>
         )}
         <View style={s.cardActions}>
-          <TouchableOpacity style={s.viewBtn} onPress={onPress}>
+         <TouchableOpacity style={s.viewBtn} onPress={onPress}>
             <Text style={s.viewBtnText}>👁 View</Text>
-        {canEdit && (
+          </TouchableOpacity>
+          {canEdit && (
             <TouchableOpacity style={s.deleteCardBtn} onPress={() => {
               Alert.alert('Delete Report', `Delete "${report.name}"?`, [
                 { text: 'Cancel' },
