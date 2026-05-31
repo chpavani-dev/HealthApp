@@ -872,6 +872,7 @@ function HospitalRxCard({ rx, onPress, onDelete, canEdit = true }) {
           <Text style={s.hospitalDelete}>🗑️</Text>
         </TouchableOpacity>
       )}
+</TouchableOpacity>
   );
 }
 
