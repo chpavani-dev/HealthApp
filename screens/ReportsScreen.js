@@ -230,8 +230,8 @@ function ReportViewer({ report, visible, onClose, onDelete, onEditLab, canEdit =
                 }
               }}>
                 <Text style={v.shareBtnText}>💬 Share on WhatsApp</Text>
-            {canEdit && (
               </TouchableOpacity>
+           {canEdit && (
               <TouchableOpacity style={v.deleteBtn} onPress={() => {
                 Alert.alert('Delete Report', `Delete "${report.name}"?`, [
                   { text: 'Cancel' },
