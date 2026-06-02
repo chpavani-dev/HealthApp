@@ -193,3 +193,81 @@ export async function countNotes(memberId) {
 
   return { error: null, personal, doctor };
 }
+// ====================================================================
+// Audio upload to Supabase Storage
+// ====================================================================
+//
+// Uploads an audio file to the 'note-audio' bucket.
+// File path: {member_id}/{note_id}.m4a
+// Returns { error, url } — url is the signed URL valid for 7 days
+// ====================================================================
+
+export async function uploadNoteAudio(memberId, noteId, fileUri) {
+  if (!memberId || !noteId || !fileUri) {
+    return { error: 'missing_params' };
+  }
+
+  try {
+    // Read the file as base64
+    const response = await fetch(fileUri);
+    const blob = await response.blob();
+
+    // Upload to Supabase Storage
+    const filePath = `${memberId}/${noteId}.m4a`;
+    const { error: uploadError } = await supabase.storage
+      .from('note-audio')
+      .upload(filePath, blob, {
+        contentType: 'audio/m4a',
+        upsert: true,
+      });
+
+    if (uploadError) {
+      console.warn('[notes] uploadNoteAudio failed:', uploadError.message);
+      return { error: uploadError.message };
+    }
+
+    // Return the file path — we'll generate signed URLs on read
+    return { error: null, url: filePath };
+  } catch (e) {
+    console.warn('[notes] uploadNoteAudio threw:', e?.message);
+    return { error: e?.message || 'upload_failed' };
+  }
+}
+
+// ====================================================================
+// Get a signed URL for playback (valid 1 hour)
+// ====================================================================
+
+export async function getAudioSignedUrl(filePath) {
+  if (!filePath) return { error: 'no_path', url: null };
+
+  const { data, error } = await supabase.storage
+    .from('note-audio')
+    .createSignedUrl(filePath, 3600);  // 1 hour
+
+  if (error) {
+    console.warn('[notes] getAudioSignedUrl failed:', error.message);
+    return { error: error.message, url: null };
+  }
+
+  return { error: null, url: data?.signedUrl };
+}
+
+// ====================================================================
+// Delete an audio file from storage (when note is deleted)
+// ====================================================================
+
+export async function deleteNoteAudio(filePath) {
+  if (!filePath) return { error: null };
+
+  const { error } = await supabase.storage
+    .from('note-audio')
+    .remove([filePath]);
+
+  if (error) {
+    console.warn('[notes] deleteNoteAudio failed:', error.message);
+    return { error: error.message };
+  }
+
+  return { error: null };
+}
