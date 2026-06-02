@@ -17,6 +17,7 @@
 // ====================================================================
 
 import { supabase } from './supabase';
+import * as FileSystem from 'expo-file-system';
 
 // ====================================================================
 // Helpers
@@ -208,15 +209,22 @@ export async function uploadNoteAudio(memberId, noteId, fileUri) {
   }
 
   try {
-    // Read the file as base64
-    const response = await fetch(fileUri);
-    const blob = await response.blob();
+    // Read the file as base64 using FileSystem (more reliable than fetch on RN)
+    const base64 = await FileSystem.readAsStringAsync(fileUri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
 
-    // Upload to Supabase Storage
+    // Decode base64 to bytes
+    const byteCharacters = atob(base64);
+    const byteArray = new Uint8Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteArray[i] = byteCharacters.charCodeAt(i);
+    }
+
     const filePath = `${memberId}/${noteId}.m4a`;
     const { error: uploadError } = await supabase.storage
       .from('note-audio')
-      .upload(filePath, blob, {
+      .upload(filePath, byteArray, {
         contentType: 'audio/m4a',
         upsert: true,
       });
@@ -226,14 +234,12 @@ export async function uploadNoteAudio(memberId, noteId, fileUri) {
       return { error: uploadError.message };
     }
 
-    // Return the file path — we'll generate signed URLs on read
     return { error: null, url: filePath };
   } catch (e) {
     console.warn('[notes] uploadNoteAudio threw:', e?.message);
     return { error: e?.message || 'upload_failed' };
   }
 }
-
 // ====================================================================
 // Get a signed URL for playback (valid 1 hour)
 // ====================================================================
