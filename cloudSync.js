@@ -183,6 +183,26 @@ function timelineEntryToSupabase(memberId, metricId, date, value) {
     source_report_id: null,
   };
 }
+export async function pushNote(note, memberId) {
+  if (!memberId || memberId === 'default') return { error: 'no_member', count: 0 };
+  if (!note?.id) return { error: 'no_note_id', count: 0 };
+
+  // Note rows already use Supabase column names (no converter needed)
+  const row = {
+    id:          note.id,
+    member_id:   memberId,
+    author_id:   note.author_id,
+    note_type:   note.note_type || 'personal',
+    content:     note.content,
+    note_date:   note.note_date,
+    doctor_name: note.doctor_name || null,
+    audio_url:   note.audio_url || null,
+    has_audio:   note.has_audio === true,
+    updated_at:  new Date().toISOString(),
+  };
+
+  return safeUpsert('notes', [row]);
+}
 
 // Flatten the grouped object into an array of Supabase rows
 function flattenTimelineForSupabase(timelineObj, memberId) {
@@ -284,6 +304,7 @@ async function safeDelete(tableName, id) {
 export const deleteFamilyMemberCloud   = (id) => safeDelete('family_members', id);
 export const deleteLabReportCloud      = (id) => safeDelete('lab_reports', id);
 export const deletePrescriptionCloud   = (id) => safeDelete('prescriptions', id);
+export const deleteNoteCloud           = (id) => safeDelete('notes', id);
 
 // Timeline entries don't get individually deleted by the app today,
 // but expose it for future use.
@@ -354,6 +375,36 @@ async function pullTimelineForMember(memberId) {
     .order('date', { ascending: true });
   if (error) { console.warn(`[cloudSync] pull timeline_entries failed:`, error.message); return; }
 
+async function pullNotesForMember(memberId) {
+  const { data, error } = await supabase
+    .from('notes')
+    .select('*')
+    .eq('member_id', memberId)
+    .order('note_date', { ascending: false })
+    .order('created_at', { ascending: false });
+  if (error) { console.warn(`[cloudSync] pull notes failed:`, error.message); return; }
+
+  const remote = data || [];
+  
+  // Notes are stored in two local buckets — personal and doctor
+  const personalRemote = remote.filter(n => n.note_type === 'personal');
+  const doctorRemote   = remote.filter(n => n.note_type === 'doctor');
+
+  // Personal notes
+  const personalKey = key('notes_personal', memberId);
+  const personalLocalRaw = await AsyncStorage.getItem(personalKey);
+  const personalLocal = personalLocalRaw ? JSON.parse(personalLocalRaw) : [];
+  const personalMerged = mergeById(personalLocal, personalRemote);
+  await AsyncStorage.setItem(personalKey, JSON.stringify(personalMerged));
+
+  // Doctor notes
+  const doctorKey = key('notes_doctor', memberId);
+  const doctorLocalRaw = await AsyncStorage.getItem(doctorKey);
+  const doctorLocal = doctorLocalRaw ? JSON.parse(doctorLocalRaw) : [];
+  const doctorMerged = mergeById(doctorLocal, doctorRemote);
+  await AsyncStorage.setItem(doctorKey, JSON.stringify(doctorMerged));
+}
+
   // Group Supabase rows back into local { metricId: [{date, value}, ...] } shape
   const remoteGrouped = groupTimelineFromSupabase(data || []);
 
@@ -393,6 +444,7 @@ export async function pullAllForUser(userId) {
       await pullReportsForMember(m.id);
       await pullPrescriptionsForMember(m.id);
       await pullTimelineForMember(m.id);
+      await pullNotesForMember(m.id);
     }
 
     lastSyncedAt = new Date().toISOString();

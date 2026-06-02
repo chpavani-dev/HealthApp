@@ -16,6 +16,7 @@ import HomeScreen          from './screens/HomeScreen';
 import ReportsScreen       from './screens/ReportsScreen';
 import PrescriptionsScreen from './screens/PrescriptionsScreen';
 import TimelineScreen      from './screens/TimelineScreen';
+import NotesScreen          from './screens/NotesScreen';
 import LoginScreen         from './screens/LoginScreen';
 import ProfileScreen       from './screens/ProfileScreen';
 import * as Sentry from '@sentry/react-native';
@@ -49,6 +50,7 @@ const TABS = [
   { name: 'Reports',       label: 'Lab Reports', icon: '📋' },
   { name: 'Prescriptions', label: 'My Meds',     icon: '💊' },
   { name: 'Timeline',      label: 'Lab Trends',  icon: '📈' },
+  { name: 'Notes',         label: 'Notes',       icon: '📝' },
 ];
 
 function TabIcon({ name, focused }) {
@@ -105,6 +107,9 @@ function MainApp({ members, activeMember, onSwitchMember, onLogout, onUpdateMemb
         </Tab.Screen>
         <Tab.Screen name="Timeline">
           {(props) => <TimelineScreen {...props} activeMember={activeMember} />}
+        </Tab.Screen>
+       <Tab.Screen name="Notes">
+          {(props) => <NotesScreen {...props} activeMember={activeMember} />}
         </Tab.Screen>
       </Tab.Navigator>
     </NavigationContainer>

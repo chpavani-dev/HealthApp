@@ -10,6 +10,8 @@ import {
   deleteLabReportCloud,
   deletePrescriptionCloud,
   deleteTimelineEntryCloud,
+  pushNote,
+  deleteNoteCloud,
 } from './cloudSync';
 
 
@@ -66,7 +68,7 @@ export async function addPrescriptions(newRxList, memberId) {
       if (r?.error) {
         Sentry.captureMessage('pushPrescription error: ' + JSON.stringify(r.error) + ' rxId: ' + rx.id, 'warning');
       }
-    }).catch(e => Sentry.captureException(e));
+    }).catch(e => Sentry.captureException(e));  deleteTimelineEntryCloud,
   }
   return updated;
 }
@@ -498,4 +500,66 @@ export async function getTieredTrackedMetrics(memberId) {
     else                 autoPromoted.push(m);
   }
   return { tier1, autoPromoted };
+}
+// ====================================================================
+// Notes (personal + doctor stored in separate AsyncStorage buckets)
+// ====================================================================
+
+export async function getNotes(memberId, noteType) {
+  if (!memberId) return [];
+  if (!['personal', 'doctor'].includes(noteType)) return [];
+  try {
+    const storageKey = key(`notes_${noteType}`, memberId);
+    const data = await AsyncStorage.getItem(storageKey);
+    return data ? JSON.parse(data) : [];
+  } catch (e) {
+    console.log('getNotes error:', e);
+    return [];
+  }
+}
+
+export async function saveNotes(notes, memberId, noteType) {
+  if (!memberId || !['personal', 'doctor'].includes(noteType)) return;
+  try {
+    const storageKey = key(`notes_${noteType}`, memberId);
+    await AsyncStorage.setItem(storageKey, JSON.stringify(notes));
+  } catch (e) { console.log('Save notes error:', e); }
+}
+
+export async function addNote(note, memberId) {
+  if (!note?.note_type) return [];
+  const existing = await getNotes(memberId, note.note_type);
+  const updated = [note, ...existing];
+  await saveNotes(updated, memberId, note.note_type);
+  pushNote(note, memberId).then(r => {
+    if (r?.error) {
+      Sentry.captureMessage('pushNote error: ' + JSON.stringify(r.error), 'warning');
+    }
+  }).catch(e => Sentry.captureException(e));
+  return updated;
+}
+
+export async function deleteNote(noteId, memberId, noteType) {
+  if (!noteId || !['personal', 'doctor'].includes(noteType)) return [];
+  const existing = await getNotes(memberId, noteType);
+  const updated = existing.filter(n => n.id !== noteId);
+  await saveNotes(updated, memberId, noteType);
+  deleteNoteCloud(noteId).catch(() => {});
+  return updated;
+}
+
+export async function updateNoteLocal(noteId, memberId, noteType, updates) {
+  if (!noteId) return [];
+  const existing = await getNotes(memberId, noteType);
+  const updated = existing.map(n => 
+    n.id === noteId ? { ...n, ...updates, updated_at: new Date().toISOString() } : n
+  );
+  await saveNotes(updated, memberId, noteType);
+  const merged = updated.find(n => n.id === noteId);
+  if (merged) {
+    pushNote(merged, memberId).then(r => {
+      if (r?.error) Sentry.captureMessage('pushNote update error: ' + JSON.stringify(r.error), 'warning');
+    }).catch(e => Sentry.captureException(e));
+  }
+  return updated;
 }
