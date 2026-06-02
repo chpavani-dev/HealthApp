@@ -68,7 +68,7 @@ export async function addPrescriptions(newRxList, memberId) {
       if (r?.error) {
         Sentry.captureMessage('pushPrescription error: ' + JSON.stringify(r.error) + ' rxId: ' + rx.id, 'warning');
       }
-    }).catch(e => Sentry.captureException(e));  deleteTimelineEntryCloud,
+    }).catch(e => Sentry.captureException(e)); 
   }
   return updated;
 }
