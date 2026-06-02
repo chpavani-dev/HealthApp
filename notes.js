@@ -209,22 +209,23 @@ export async function uploadNoteAudio(memberId, noteId, fileUri) {
   }
 
   try {
-    // Read the file as base64 using FileSystem (more reliable than fetch on RN)
+    // Read the file as base64
     const base64 = await FileSystem.readAsStringAsync(fileUri, {
       encoding: FileSystem.EncodingType.Base64,
     });
 
-    // Decode base64 to bytes
-    const byteCharacters = atob(base64);
-    const byteArray = new Uint8Array(byteCharacters.length);
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteArray[i] = byteCharacters.charCodeAt(i);
+    // Convert base64 to ArrayBuffer using a manual decoder
+    // (atob isn't reliable on Android React Native)
+    const binaryString = decodeBase64(base64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
     }
 
     const filePath = `${memberId}/${noteId}.m4a`;
     const { error: uploadError } = await supabase.storage
       .from('note-audio')
-      .upload(filePath, byteArray, {
+      .upload(filePath, bytes, {
         contentType: 'audio/m4a',
         upsert: true,
       });
@@ -239,6 +240,35 @@ export async function uploadNoteAudio(memberId, noteId, fileUri) {
     console.warn('[notes] uploadNoteAudio threw:', e?.message);
     return { error: e?.message || 'upload_failed' };
   }
+}
+
+// ====================================================================
+// Base64 decoder (works in React Native without atob)
+// ====================================================================
+
+function decodeBase64(base64) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  let output = '';
+  
+  // Remove padding chars
+  const cleaned = base64.replace(/=+$/, '');
+  
+  for (let i = 0; i < cleaned.length;) {
+    const e1 = chars.indexOf(cleaned[i++]);
+    const e2 = chars.indexOf(cleaned[i++]);
+    const e3 = chars.indexOf(cleaned[i++]);
+    const e4 = chars.indexOf(cleaned[i++]);
+    
+    const c1 = (e1 << 2) | (e2 >> 4);
+    const c2 = ((e2 & 15) << 4) | (e3 >> 2);
+    const c3 = ((e3 & 3) << 6) | e4;
+    
+    output += String.fromCharCode(c1);
+    if (e3 !== -1) output += String.fromCharCode(c2);
+    if (e4 !== -1) output += String.fromCharCode(c3);
+  }
+  
+  return output;
 }
 // ====================================================================
 // Get a signed URL for playback (valid 1 hour)
