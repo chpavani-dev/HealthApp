@@ -13,7 +13,7 @@ import {
   getReports, addReport, deleteReport, parseAndSaveLabValues,
   saveLabReportFromAI, saveReports, findExactDuplicateReports
 } from '../storage';
-import { getLabReportOriginalUrl } from '../cloudSync';
+import { getLabReportOriginalUrl, uploadLabReportOriginal } from '../cloudSync';
 import ViewOnlyBanner from '../ViewOnlyBanner';
 
 const { width } = Dimensions.get('window');
@@ -953,6 +953,33 @@ async function attachImageToLatestReports(count, imageUri, memberId, fileType = 
       return r;
     });
     await saveReports(updated, memberId);
+
+    // Upload original to Supabase Storage for each affected report
+    // We upload the SAME source file under each panel's ID so each lab_reports row
+    // gets its own image_url, enabling per-report viewer + per-report delete cleanup
+    const reportsToUpload = updated.slice(0, count);
+    for (const report of reportsToUpload) {
+      if (!report.id) continue;
+      uploadLabReportOriginal(memberId, report.id, imageUri, fileType)
+        .then(async (r) => {
+          if (r?.error) {
+            console.warn('upload original failed:', JSON.stringify(r.error));
+            return;
+          }
+          // Update local + cloud with image_url
+          const cloudPath = r.url;
+          const allReports = await getReports(memberId);
+          const idx = allReports.findIndex(rep => rep.id === report.id);
+          if (idx !== -1) {
+            allReports[idx] = { ...allReports[idx], imageUrl: cloudPath };
+            await saveReports(allReports, memberId);
+            // Push updated report to cloud so image_url is saved
+            const { pushLabReport } = require('../cloudSync');
+            pushLabReport(allReports[idx], memberId).catch(() => {});
+          }
+        })
+        .catch(e => console.warn('upload threw:', e?.message || e));
+    }
   } catch(e) { console.log('attachImage error:', e); }
 }
 
