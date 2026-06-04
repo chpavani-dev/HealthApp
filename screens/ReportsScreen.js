@@ -382,7 +382,8 @@ function ReportCard({ report, onPress, onDelete, canEdit = true }) {
         </View>
       </View>
     {/* Image preview — prefer cloud URL, fall back to local */}
-            {(report.type === 'image' || !report.type) && (report.imageUrl || report.image) && (
+           {/* Image preview — prefer cloud URL, fall back to local */}
+            {(report.type === 'image' || !report.type) && (
               <View>
                 {loadingUrl && (
                   <View style={{ paddingVertical: 20, alignItems: 'center' }}>
@@ -390,16 +391,20 @@ function ReportCard({ report, onPress, onDelete, canEdit = true }) {
                     <Text style={{ marginTop: 8, color: GRAY, fontSize: 12 }}>Loading original...</Text>
                   </View>
                 )}
-                <Image 
-                  source={{ uri: cloudUrl || report.image }} 
-                  style={v.reportImage} 
-                  resizeMode="contain"
-                />
+                {(() => {
+                  const uri = cloudUrl || report.image;
+                  if (!uri || typeof uri !== 'string') return null;
+                  return (
+                    <Image 
+                      source={{ uri }} 
+                      style={v.reportImage} 
+                      resizeMode="contain"
+                      onError={(e) => console.warn('Image load error:', e?.nativeEvent?.error)}
+                    />
+                  );
+                })()}
               </View>
             )}
-    </TouchableOpacity>
-  );
-}
 
 function ProcessingModal({ visible, current, total, status }) {
   return (

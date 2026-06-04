@@ -57,28 +57,32 @@ export async function addReport(report, memberId) {
 
   // Upload original file (PDF or image) to Supabase Storage in background
   if (report.image && report.id) {
-    uploadLabReportOriginal(memberId, report.id, report.image, report.fileType || 'image')
-      .then(async (r) => {
+    try {
+      const uploadPromise = uploadLabReportOriginal(memberId, report.id, report.image, report.fileType || 'image');
+      uploadPromise.then(async (r) => {
         if (r?.error) {
           Sentry.captureMessage('uploadLabReportOriginal error: ' + JSON.stringify(r.error), 'warning');
-          // Don't fail the save — local copy still exists
           return;
         }
-        // Success — store cloud path back in the report's image_url field
-        const cloudPath = r.url;
-        // Update local copy to remember the cloud path
-        const allReports = await getReports(memberId);
-        const idx = allReports.findIndex(rep => rep.id === report.id);
-        if (idx !== -1) {
-          allReports[idx] = { ...allReports[idx], imageUrl: cloudPath };
-          await saveReports(allReports, memberId);
-          // Also push the updated report to cloud so image_url is saved
-          pushLabReport(allReports[idx], memberId).catch(() => {});
+        try {
+          const cloudPath = r.url;
+          const allReports = await getReports(memberId);
+          const idx = allReports.findIndex(rep => rep.id === report.id);
+          if (idx !== -1) {
+            allReports[idx] = { ...allReports[idx], imageUrl: cloudPath };
+            await saveReports(allReports, memberId);
+            pushLabReport(allReports[idx], memberId).catch(() => {});
+          }
+        } catch (innerErr) {
+          Sentry.captureException(innerErr);
         }
-      })
-      .catch(e => Sentry.captureException(e));
+      }).catch(e => {
+        Sentry.captureException(e);
+      });
+    } catch (syncErr) {
+      Sentry.captureException(syncErr);
+    }
   }
-
   return updated;
 }
 export async function deleteReport(reportId, memberId) {
