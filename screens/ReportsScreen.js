@@ -13,6 +13,7 @@ import {
   getReports, addReport, deleteReport, parseAndSaveLabValues,
   saveLabReportFromAI, saveReports, findExactDuplicateReports
 } from '../storage';
+import { getLabReportOriginalUrl } from '../cloudSync';
 import ViewOnlyBanner from '../ViewOnlyBanner';
 
 const { width } = Dimensions.get('window');
@@ -130,8 +131,27 @@ function TestRow({ test }) {
 }
 
 function ReportViewer({ report, visible, onClose, onDelete, onEditLab, canEdit = true }) {
-  if (!report) return null;
+  const [cloudUrl, setCloudUrl] = useState(null);
+  const [loadingUrl, setLoadingUrl] = useState(false);
 
+  useEffect(() => {
+    if (!visible || !report?.imageUrl) {
+      setCloudUrl(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setLoadingUrl(true);
+      const result = await getLabReportOriginalUrl(report.imageUrl);
+      if (!cancelled) {
+        setCloudUrl(result?.url || null);
+        setLoadingUrl(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [visible, report?.imageUrl]);
+
+  if (!report) return null;
   const tests        = report.tests || [];
   const abnormalCount = report.abnormalCount ?? tests.filter(t =>
     ['low','high','critical_low','critical_high','abnormal'].includes(t.flag)
@@ -185,14 +205,29 @@ function ReportViewer({ report, visible, onClose, onDelete, onEditLab, canEdit =
               <View style={v.pdfBox}>
                 <Text style={v.pdfEmoji}>📄</Text>
                 <Text style={v.pdfName}>{report.fileName || report.name}</Text>
-                <TouchableOpacity style={v.openPdfBtn} onPress={async () => {
-                  if (report.image) {
-                    const ok = await Sharing.isAvailableAsync();
-                    if (ok) await Sharing.shareAsync(report.image, { mimeType: 'application/pdf' });
-                  }
-                }}>
-                  <Text style={v.openPdfBtnText}>Open PDF ↗</Text>
-                </TouchableOpacity>
+                {loadingUrl ? (
+                  <ActivityIndicator color={TEAL} style={{ marginTop: 12 }} />
+                ) : (
+                  <TouchableOpacity style={v.openPdfBtn} onPress={async () => {
+                    const uri = cloudUrl || report.image;
+                    if (!uri) {
+                      Alert.alert('Not available', 'Original file not found on device or cloud.');
+                      return;
+                    }
+                    if (cloudUrl) {
+                      // Open cloud URL in browser
+                      Linking.openURL(uri).catch(() => {
+                        Alert.alert('Could not open PDF', 'Try sharing the file instead.');
+                      });
+                    } else {
+                      // Local file — use Sharing API
+                      const ok = await Sharing.isAvailableAsync();
+                      if (ok) await Sharing.shareAsync(uri, { mimeType: 'application/pdf' });
+                    }
+                  }}>
+                    <Text style={v.openPdfBtnText}>Open PDF ↗</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             )}
 
@@ -346,9 +381,22 @@ function ReportCard({ report, onPress, onDelete, canEdit = true }) {
           )}
         </View>
       </View>
-      {report.image && report.type === 'image' && (
-        <Image source={{ uri: report.image }} style={s.reportThumb} />
-      )}
+    {/* Image preview — prefer cloud URL, fall back to local */}
+            {(report.type === 'image' || !report.type) && (report.imageUrl || report.image) && (
+              <View>
+                {loadingUrl && (
+                  <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+                    <ActivityIndicator color={TEAL} />
+                    <Text style={{ marginTop: 8, color: GRAY, fontSize: 12 }}>Loading original...</Text>
+                  </View>
+                )}
+                <Image 
+                  source={{ uri: cloudUrl || report.image }} 
+                  style={v.reportImage} 
+                  resizeMode="contain"
+                />
+              </View>
+            )}
     </TouchableOpacity>
   );
 }

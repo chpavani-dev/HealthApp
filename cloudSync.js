@@ -306,6 +306,111 @@ export const deleteLabReportCloud      = (id) => safeDelete('lab_reports', id);
 export const deletePrescriptionCloud   = (id) => safeDelete('prescriptions', id);
 export const deleteNoteCloud           = (id) => safeDelete('notes', id);
 
+// ====================================================================
+// Lab report originals — file upload to Supabase Storage
+// File path convention: {member_id}/{report_id}.{ext}
+// 10 MB cap enforced client-side
+// ====================================================================
+
+import * as FileSystem from 'expo-file-system/legacy';
+
+const LAB_ORIGINAL_MAX_BYTES = 10 * 1024 * 1024;  // 10 MB
+
+// Manual base64 decoder (atob is unreliable on Android RN)
+function decodeBase64ToBytes(base64) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  const cleaned = base64.replace(/=+$/, '');
+  const bytes = [];
+  for (let i = 0; i < cleaned.length;) {
+    const e1 = chars.indexOf(cleaned[i++]);
+    const e2 = chars.indexOf(cleaned[i++]);
+    const e3 = chars.indexOf(cleaned[i++]);
+    const e4 = chars.indexOf(cleaned[i++]);
+    bytes.push((e1 << 2) | (e2 >> 4));
+    if (e3 !== -1) bytes.push(((e2 & 15) << 4) | (e3 >> 2));
+    if (e4 !== -1) bytes.push(((e3 & 3) << 6) | e4);
+  }
+  return new Uint8Array(bytes);
+}
+
+export async function uploadLabReportOriginal(memberId, reportId, fileUri, fileType) {
+  if (!memberId || !reportId || !fileUri) {
+    return { error: 'missing_params' };
+  }
+
+  try {
+    // Get file size for cap check
+    const fileInfo = await FileSystem.getInfoAsync(fileUri);
+    if (!fileInfo.exists) {
+      return { error: 'file_not_found' };
+    }
+    if (fileInfo.size > LAB_ORIGINAL_MAX_BYTES) {
+      return { 
+        error: 'file_too_large', 
+        message: `File is ${Math.round(fileInfo.size / 1024 / 1024)} MB. Maximum allowed is 10 MB.` 
+      };
+    }
+
+    // Read as base64 then decode to bytes
+    const base64 = await FileSystem.readAsStringAsync(fileUri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+    const bytes = decodeBase64ToBytes(base64);
+
+    // Determine extension + mime
+    const ext = (fileType === 'pdf') ? 'pdf' : 'jpg';
+    const contentType = (fileType === 'pdf') ? 'application/pdf' : 'image/jpeg';
+    const filePath = `${memberId}/${reportId}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('lab-originals')
+      .upload(filePath, bytes, {
+        contentType,
+        upsert: true,
+      });
+
+    if (uploadError) {
+      console.warn('[cloudSync] uploadLabReportOriginal failed:', uploadError.message);
+      return { error: uploadError.message };
+    }
+
+    return { error: null, url: filePath };
+  } catch (e) {
+    console.warn('[cloudSync] uploadLabReportOriginal threw:', e?.message);
+    return { error: e?.message || 'upload_failed' };
+  }
+}
+
+export async function getLabReportOriginalUrl(filePath) {
+  if (!filePath) return { error: 'no_path', url: null };
+
+  const { data, error } = await supabase.storage
+    .from('lab-originals')
+    .createSignedUrl(filePath, 3600);  // 1 hour
+
+  if (error) {
+    console.warn('[cloudSync] getLabReportOriginalUrl failed:', error.message);
+    return { error: error.message, url: null };
+  }
+
+  return { error: null, url: data?.signedUrl };
+}
+
+export async function deleteLabReportOriginalCloud(filePath) {
+  if (!filePath) return { error: null };
+
+  const { error } = await supabase.storage
+    .from('lab-originals')
+    .remove([filePath]);
+
+  if (error) {
+    console.warn('[cloudSync] deleteLabReportOriginalCloud failed:', error.message);
+    return { error: error.message };
+  }
+
+  return { error: null };
+}
+
 // Timeline entries don't get individually deleted by the app today,
 // but expose it for future use.
 export const deleteTimelineEntryCloud = (memberId, metricId, date) =>

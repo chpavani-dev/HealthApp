@@ -12,6 +12,9 @@ import {
   deleteTimelineEntryCloud,
   pushNote,
   deleteNoteCloud,
+uploadLabReportOriginal,
+  getLabReportOriginalUrl,
+  deleteLabReportOriginalCloud,
 } from './cloudSync';
 
 
@@ -44,18 +47,52 @@ export async function addReport(report, memberId) {
   const existing = await getReports(memberId);
   const updated  = [report, ...existing];
   await saveReports(updated, memberId);
-pushLabReport(report, memberId).then(r => {
+
+  // Push parsed data to cloud
+  pushLabReport(report, memberId).then(r => {
     if (r?.error) {
       Sentry.captureMessage('pushLabReport error: ' + JSON.stringify(r.error), 'warning');
     }
   }).catch(e => Sentry.captureException(e));
+
+  // Upload original file (PDF or image) to Supabase Storage in background
+  if (report.image && report.id) {
+    uploadLabReportOriginal(memberId, report.id, report.image, report.fileType || 'image')
+      .then(async (r) => {
+        if (r?.error) {
+          Sentry.captureMessage('uploadLabReportOriginal error: ' + JSON.stringify(r.error), 'warning');
+          // Don't fail the save — local copy still exists
+          return;
+        }
+        // Success — store cloud path back in the report's image_url field
+        const cloudPath = r.url;
+        // Update local copy to remember the cloud path
+        const allReports = await getReports(memberId);
+        const idx = allReports.findIndex(rep => rep.id === report.id);
+        if (idx !== -1) {
+          allReports[idx] = { ...allReports[idx], imageUrl: cloudPath };
+          await saveReports(allReports, memberId);
+          // Also push the updated report to cloud so image_url is saved
+          pushLabReport(allReports[idx], memberId).catch(() => {});
+        }
+      })
+      .catch(e => Sentry.captureException(e));
+  }
+
   return updated;
 }
 export async function deleteReport(reportId, memberId) {
   const existing = await getReports(memberId);
+  const toDelete = existing.find(r => r.id === reportId);
   const updated  = existing.filter(r => r.id !== reportId);
   await saveReports(updated, memberId);
   deleteLabReportCloud(reportId).catch(() => {});
+
+  // Also clean up original file from Storage if it was uploaded
+  if (toDelete?.imageUrl) {
+    deleteLabReportOriginalCloud(toDelete.imageUrl).catch(() => {});
+  }
+
   return updated;
 }
 // Prescriptions
