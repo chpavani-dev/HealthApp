@@ -381,29 +381,19 @@ function ReportCard({ report, onPress, onDelete, canEdit = true }) {
           )}
         </View>
       </View>
-    {/* Image preview — prefer cloud URL, fall back to local */}
-           {/* Image preview — prefer cloud URL, fall back to local */}
-            {(report.type === 'image' || !report.type) && (
-              <View>
-                {loadingUrl && (
-                  <View style={{ paddingVertical: 20, alignItems: 'center' }}>
-                    <ActivityIndicator color={TEAL} />
-                    <Text style={{ marginTop: 8, color: GRAY, fontSize: 12 }}>Loading original...</Text>
-                  </View>
-                )}
-                {(() => {
-                  const uri = cloudUrl || report.image;
-                  if (!uri || typeof uri !== 'string') return null;
-                  return (
-                    <Image 
-                      source={{ uri }} 
-                      style={v.reportImage} 
-                      resizeMode="contain"
-                      onError={(e) => console.warn('Image load error:', e?.nativeEvent?.error)}
-                    />
-                  );
-                })()}
+   {/* Image preview — prefer cloud URL, fall back to local */}
+            {(report.type === 'image' || !report.type) && loadingUrl && (
+              <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+                <ActivityIndicator color={TEAL} />
+                <Text style={{ marginTop: 8, color: GRAY, fontSize: 12 }}>Loading original...</Text>
               </View>
+            )}
+            {(report.type === 'image' || !report.type) && (cloudUrl || report.image) && typeof (cloudUrl || report.image) === 'string' && (
+              <Image 
+                source={{ uri: cloudUrl || report.image }} 
+                style={v.reportImage} 
+                resizeMode="contain"
+              />
             )}
 
 function ProcessingModal({ visible, current, total, status }) {
