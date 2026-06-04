@@ -198,8 +198,18 @@ function ReportViewer({ report, visible, onClose, onDelete, onEditLab, canEdit =
               </View>
             )}
 
-            {report.image && report.type === 'image' && (
-              <Image source={{ uri: report.image }} style={v.reportImage} resizeMode="contain" />
+           {(report.type === 'image' || !report.type) && loadingUrl && (
+              <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+                <ActivityIndicator color={TEAL} />
+                <Text style={{ marginTop: 8, color: GRAY, fontSize: 12 }}>Loading original...</Text>
+              </View>
+            )}
+            {(report.type === 'image' || !report.type) && (cloudUrl || report.image) && typeof (cloudUrl || report.image) === 'string' && (
+              <Image 
+                source={{ uri: cloudUrl || report.image }} 
+                style={v.reportImage} 
+                resizeMode="contain"
+              />
             )}
             {report.type === 'pdf' && (
               <View style={v.pdfBox}>
@@ -379,22 +389,11 @@ function ReportCard({ report, onPress, onDelete, canEdit = true }) {
               <Text style={s.deleteCardBtnText}>🗑️ Delete</Text>
             </TouchableOpacity>
           )}
-        </View>
       </View>
-   {/* Image preview — prefer cloud URL, fall back to local */}
-            {(report.type === 'image' || !report.type) && loadingUrl && (
-              <View style={{ paddingVertical: 20, alignItems: 'center' }}>
-                <ActivityIndicator color={TEAL} />
-                <Text style={{ marginTop: 8, color: GRAY, fontSize: 12 }}>Loading original...</Text>
-              </View>
-            )}
-            {(report.type === 'image' || !report.type) && (cloudUrl || report.image) && typeof (cloudUrl || report.image) === 'string' && (
-              <Image 
-                source={{ uri: cloudUrl || report.image }} 
-                style={v.reportImage} 
-                resizeMode="contain"
-              />
-            )}
+      </View>
+    </TouchableOpacity>
+  );
+}
 
 function ProcessingModal({ visible, current, total, status }) {
   return (
