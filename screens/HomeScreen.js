@@ -474,18 +474,36 @@ async function handleAcceptInvite() {
         onClose={() => setShowDropdown(false)}
       />
 
-      {/* ── Family Manager Modal ── */}
+ {/* ── Family Manager Modal ── */}
       <Modal visible={showFamilyMgr} animationType="slide" transparent>
         <View style={fm.overlay}>
           <View style={fm.sheet}>
             <View style={fm.handle} />
             <View style={fm.header}>
               <Text style={fm.title}>Family Profiles</Text>
-              <TouchableOpacity style={fm.closeBtn} onPress={() => setShowFamilyMgr(false)}>
-                <Text style={fm.closeBtnText}>✕</Text>
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <TouchableOpacity
+                  style={fm.closeBtn}
+                  onPress={() => { setShowFamilyMgr(false); openManageShares(); }}
+                  accessibilityLabel="Manage Sharing"
+                >
+                  <Text style={fm.closeBtnText}>⚙️</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={fm.closeBtn} onPress={() => setShowFamilyMgr(false)}>
+                  <Text style={fm.closeBtnText}>✕</Text>
+                </TouchableOpacity>
+              </View>
             </View>
             <ScrollView showsVerticalScrollIndicator={false}>
+              <TouchableOpacity 
+                style={fm.manageSharingLink}
+                onPress={() => { setShowFamilyMgr(false); openManageShares(); }}
+                activeOpacity={0.7}
+              >
+                <Text style={fm.manageSharingIcon}>⚙️</Text>
+                <Text style={fm.manageSharingText}>Manage Sharing</Text>
+                <Text style={fm.manageSharingArrow}>›</Text>
+              </TouchableOpacity>
               {members.map(m => (
                 <View key={m.id} style={fm.memberRow}>
                   <View style={[fm.avatar, { backgroundColor: activeMember?.id === m.id ? TEAL : '#E5E7EB' }]}>
@@ -517,13 +535,12 @@ async function handleAcceptInvite() {
                       {activeMember?.id === m.id ? '✓ Active' : 'Select'}
                     </Text>
                   </TouchableOpacity>
-<TouchableOpacity
-  style={fm.shareBtn}
-  onPress={() => { setShareModalFor(m); }}
->
-  <Text style={fm.shareBtnText}>📤</Text>
-</TouchableOpacity>
-
+                  <TouchableOpacity
+                    style={fm.shareBtn}
+                    onPress={() => { setShareModalFor(m); }}
+                  >
+                    <Text style={fm.shareBtnText}>📤</Text>
+                  </TouchableOpacity>
                 </View>
               ))}
 
@@ -540,23 +557,8 @@ async function handleAcceptInvite() {
           </View>
         </View>
       </Modal>
-<TouchableOpacity
-  style={[fm.addBtn, { borderColor: '#9CA3AF', marginTop: 8 }]}
-  onPress={() => { setShowFamilyMgr(false); setShowAcceptModal(true); }}
-  activeOpacity={0.8}
->
-  <Text style={fm.addBtnIcon}>🔗</Text>
-  <Text style={[fm.addBtnText, { color: '#374151' }]}>Have an invite code?</Text>
-</TouchableOpacity>
 
-<TouchableOpacity
-                style={[fm.addBtn, { borderColor: '#9CA3AF', marginTop: 8 }]}
-                onPress={openManageShares}
-                activeOpacity={0.8}
-              >
-                <Text style={fm.addBtnIcon}>⚙️</Text>
-                <Text style={[fm.addBtnText, { color: '#374151' }]}>Manage sharing</Text>
-              </TouchableOpacity>
+      {/* ── Add Member Modal ── */}
 
       {/* ── Add Member Modal ── */}
       <Modal visible={showAddMember} animationType="slide" transparent>
@@ -966,6 +968,10 @@ const fm = StyleSheet.create({
   addBtn:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderRadius: 16, padding: 18, marginTop: 8, borderWidth: 2, borderColor: TEAL, borderStyle: 'dashed', gap: 10 },
   addBtnIcon:      { fontSize: 20 },
   addBtnText:      { fontSize: 15, fontWeight: '700', color: TEAL },
+manageSharingLink: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F0F9FA', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 16, borderWidth: 1, borderColor: '#CCEEF2' },
+  manageSharingIcon: { fontSize: 18, marginRight: 10 },
+  manageSharingText: { flex: 1, fontSize: 14, fontWeight: '600', color: '#075F6E' },
+  manageSharingArrow: { fontSize: 20, color: '#0B8FAC', fontWeight: '700' },
 permBadge:       { backgroundColor: TEAL_LT, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, marginLeft: 8 },
   permBadgeText:   { fontSize: 11, fontWeight: '600', color: TEAL },
   fieldLabel:      { fontSize: 13, fontWeight: '700', color: DARK, marginBottom: 8 },
