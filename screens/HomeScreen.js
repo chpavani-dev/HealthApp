@@ -504,6 +504,15 @@ async function handleAcceptInvite() {
                 <Text style={fm.manageSharingText}>Manage Sharing</Text>
                 <Text style={fm.manageSharingArrow}>›</Text>
               </TouchableOpacity>
+<TouchableOpacity 
+                style={fm.gotInviteLink}
+                onPress={() => { setShowFamilyMgr(false); setShowAcceptModal(true); }}
+                activeOpacity={0.7}
+              >
+                <Text style={fm.gotInviteIcon}>🔗</Text>
+                <Text style={fm.gotInviteText}>Got an invite code?</Text>
+                <Text style={fm.gotInviteArrow}>›</Text>
+              </TouchableOpacity>
               {members.map(m => (
                 <View key={m.id} style={fm.memberRow}>
                   <View style={[fm.avatar, { backgroundColor: activeMember?.id === m.id ? TEAL : '#E5E7EB' }]}>
@@ -972,6 +981,10 @@ manageSharingLink: { flexDirection: 'row', alignItems: 'center', backgroundColor
   manageSharingIcon: { fontSize: 18, marginRight: 10 },
   manageSharingText: { flex: 1, fontSize: 14, fontWeight: '600', color: '#075F6E' },
   manageSharingArrow: { fontSize: 20, color: '#0B8FAC', fontWeight: '700' },
+gotInviteLink: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF7ED', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 16, borderWidth: 1, borderColor: '#FED7AA' },
+  gotInviteIcon: { fontSize: 18, marginRight: 10 },
+  gotInviteText: { flex: 1, fontSize: 14, fontWeight: '600', color: '#9A3412' },
+  gotInviteArrow: { fontSize: 20, color: '#F59E0B', fontWeight: '700' },
 permBadge:       { backgroundColor: TEAL_LT, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, marginLeft: 8 },
   permBadgeText:   { fontSize: 11, fontWeight: '600', color: TEAL },
   fieldLabel:      { fontSize: 13, fontWeight: '700', color: DARK, marginBottom: 8 },
