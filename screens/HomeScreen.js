@@ -11,6 +11,7 @@ import { pullAllForUser } from '../cloudSync';
 import { supabase } from '../supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
+import SettingsModal from './SettingsModal';
 
 const TEAL    = '#0B8FAC';
 const TEAL_LT = '#E8F7FA';
@@ -84,8 +85,7 @@ function todayLong() {
   });
 }
 
-function MemberDropdown({ members, activeMember, onSwitch, visible, onClose }) {
-  return (
+function MemberDropdown({ members, activeMember, onSwitch, visible, onClose, onSettingsPress }) {  return (
     <Modal visible={visible} animationType="fade" transparent>
       <TouchableOpacity style={dd.overlay} onPress={onClose} activeOpacity={1}>
         <View style={dd.menu}>
@@ -109,6 +109,15 @@ function MemberDropdown({ members, activeMember, onSwitch, visible, onClose }) {
               {activeMember?.id === m.id && <Text style={dd.menuCheck}>✓</Text>}
             </TouchableOpacity>
           ))}
+          <View style={dd.divider} />
+          <TouchableOpacity
+            style={dd.settingsItem}
+            onPress={() => { onClose(); onSettingsPress(); }}
+            activeOpacity={0.7}
+          >
+            <Text style={dd.settingsIcon}>⚙️</Text>
+            <Text style={dd.settingsText}>Settings</Text>
+          </TouchableOpacity>
         </View>
       </TouchableOpacity>
     </Modal>
@@ -141,6 +150,7 @@ export default function HomeScreen({
 }) {
 const { setPermission } = usePermission();
   const [showDropdown,   setShowDropdown]   = useState(false);
+const [showSettings,   setShowSettings]   = useState(false);
   const [showFamilyMgr,  setShowFamilyMgr]  = useState(false);
   const [showAddMember,  setShowAddMember]  = useState(false);
   const [activeMeds,     setActiveMeds]     = useState([]);
@@ -466,14 +476,21 @@ async function handleAcceptInvite() {
       </ScrollView>
 
       {/* ── Member Dropdown ── */}
-      <MemberDropdown
+    <MemberDropdown
         members={members}
         activeMember={activeMember}
         onSwitch={onSwitchMember}
         visible={showDropdown}
         onClose={() => setShowDropdown(false)}
+        onSettingsPress={() => setShowSettings(true)}
       />
 
+      <SettingsModal
+        visible={showSettings}
+        onClose={() => setShowSettings(false)}
+        memberCount={members.length}
+        onAccountDeleted={() => { setShowSettings(false); onLogout(); }}
+      />
  {/* ── Family Manager Modal ── */}
       <Modal visible={showFamilyMgr} animationType="slide" transparent>
         <View style={fm.overlay}>
@@ -952,6 +969,10 @@ const dd = StyleSheet.create({
   menuName:       { fontSize: 15, fontWeight: '700', color: DARK },
   menuSub:        { fontSize: 12, color: GRAY, marginTop: 2 },
   menuCheck:      { fontSize: 18, color: TEAL, fontWeight: '700' },
+  divider:        { height: 1, backgroundColor: '#E5E7EB', marginVertical: 6 },
+  settingsItem:   { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 14, backgroundColor: '#F9FAFB' },
+  settingsIcon:   { fontSize: 18, marginRight: 12 },
+  settingsText:   { fontSize: 14, color: '#374151', fontWeight: '600', flex: 1 },
 });
 
 const fm = StyleSheet.create({
