@@ -126,7 +126,6 @@ export default function SupabaseLoginScreen({ onCodeSent }) {
               resizeMode="contain"
             />
             <Text style={styles.logoSubtitle}>Family health records, made simple</Text>
-          </View>
 
           <View style={styles.formCard}>
             <Text style={styles.heading}>Welcome</Text>
@@ -241,9 +240,4 @@ const styles = StyleSheet.create({
 
   footerText:     { fontSize: 11, color: GRAY, textAlign: 'center', marginTop: 24,
                     paddingHorizontal: 20, lineHeight: 16 },
-});
-marginTop: 24,
-                    paddingHorizontal: 20, lineHeight: 16 },
-});
-zontal: 20, lineHeight: 16 },
 });
