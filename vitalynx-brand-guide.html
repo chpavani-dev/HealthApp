@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vitalynx — Brand Folio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --teal: #114E5C;
+    --teal-deep: #0A3942;
+    --amber: #E6A847;
+    --cream: #FAF6EE;
+    --cream-edge: #ECDFC6;
+    --muted: #9C8B6E;
+    --white: #FFFFFF;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--cream);
+    color: var(--teal);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-weight: 400;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  .container {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 4rem 2rem;
+  }
+  .cover {
+    text-align: center;
+    padding: 5rem 2rem 4rem;
+    border-bottom: 0.5px solid var(--cream-edge);
+    margin-bottom: 4rem;
+  }
+  .cover-meta {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 2rem;
+  }
+  .cover .wm {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-weight: 700;
+    font-size: 88px;
+    letter-spacing: -0.02em;
+    color: var(--teal);
+    line-height: 1;
+    margin: 2rem 0 1rem;
+  }
+  .cover .wm .y { color: var(--amber); }
+  .cover-title {
+    font-family: 'Playfair Display', serif;
+    font-weight: 500;
+    font-size: 22px;
+    color: var(--teal);
+    margin-bottom: 0.5rem;
+  }
+  .cover-version {
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .section {
+    margin-bottom: 5rem;
+  }
+  .section-num {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.5rem;
+  }
+  .section-title {
+    font-family: 'Playfair Display', serif;
+    font-weight: 600;
+    font-size: 30px;
+    color: var(--teal);
+    margin: 0 0 0.5rem;
+    letter-spacing: -0.005em;
+  }
+  .section-sub {
+    font-size: 14px;
+    color: var(--teal);
+    opacity: 0.75;
+    margin-bottom: 2rem;
+    max-width: 60ch;
+    line-height: 1.6;
+  }
+  .panel {
+    background: var(--white);
+    border-radius: 16px;
+    padding: 2.5rem;
+    border: 0.5px solid var(--cream-edge);
+  }
+  .panel.dark { background: var(--teal); border-color: var(--teal); }
+  .panel.amber { background: var(--amber); border-color: var(--amber); }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+  .center { display: flex; align-items: center; justify-content: center; }
+  .col { display: flex; flex-direction: column; }
+
+  /* Wordmark utility */
+  .wm {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-weight: 700;
+    color: var(--teal);
+    letter-spacing: -0.01em;
+    line-height: 1;
+  }
+  .wm .y { color: var(--amber); }
+  .wm-white { color: var(--cream); }
+  .wm-white .y { color: var(--amber); }
+
+  .label {
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin-top: 1rem;
+    text-align: center;
+  }
+  .label.on-dark { color: var(--amber); }
+
+  /* Swatch cards */
+  .swatch {
+    padding: 2rem;
+    border-radius: 14px;
+    min-height: 220px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .swatch-name {
+    font-family: 'Playfair Display', serif;
+    font-weight: 500;
+    font-size: 22px;
+    line-height: 1.2;
+  }
+  .swatch-meta {
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    margin-top: 1rem;
+  }
+  .swatch-role {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    opacity: 0.7;
+  }
+
+  /* Anatomy */
+  .anatomy {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3rem;
+    align-items: center;
+  }
+  .anatomy-item {
+    margin-bottom: 1.5rem;
+  }
+  .anatomy-item:last-child { margin-bottom: 0; }
+  .anatomy-label {
+    font-family: 'Playfair Display', serif;
+    font-weight: 600;
+    font-size: 18px;
+    color: var(--teal);
+    margin-bottom: 0.25rem;
+  }
+  .anatomy-desc {
+    font-size: 13.5px;
+    color: var(--teal);
+    opacity: 0.8;
+    line-height: 1.6;
+  }
+
+  /* Don'ts */
+  .dont {
+    background: var(--white);
+    border: 0.5px solid var(--cream-edge);
+    border-radius: 12px;
+    padding: 1.5rem 1rem;
+    text-align: center;
+    min-height: 160px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .dont-x {
+    color: #A32D2D;
+    font-size: 16px;
+    font-weight: 500;
+  }
+  .dont-text {
+    font-size: 12px;
+    color: var(--teal);
+    opacity: 0.7;
+    line-height: 1.5;
+  }
+
+  /* Applications */
+  .biz-card {
+    background: var(--cream);
+    border-radius: 8px;
+    padding: 2rem 1.75rem;
+    box-shadow: 0 0 0 0.5px var(--cream-edge);
+    aspect-ratio: 1.7 / 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .biz-name {
+    font-family: 'Playfair Display', serif;
+    font-weight: 700;
+    font-size: 32px;
+    color: var(--teal);
+    letter-spacing: -0.01em;
+    margin-bottom: 4px;
+  }
+  .biz-tagline {
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .biz-person { font-weight: 500; font-size: 14px; color: var(--teal); }
+  .biz-title { font-size: 12px; color: var(--muted); }
+
+  .promo-card {
+    background: var(--teal);
+    border-radius: 8px;
+    padding: 2rem;
+    aspect-ratio: 1.7 / 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .promo-head {
+    font-family: 'Playfair Display', serif;
+    font-weight: 700;
+    font-size: 26px;
+    color: var(--cream);
+    line-height: 1.2;
+  }
+  .promo-cta {
+    font-size: 11px;
+    color: var(--amber);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  /* Typography sample */
+  .type-sample {
+    margin-bottom: 1rem;
+  }
+  .type-sample-name {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding-top: 1.25rem;
+    margin-top: 1.25rem;
+    border-top: 0.5px solid var(--cream-edge);
+  }
+  .type-sample-name strong { font-weight: 500; font-size: 14px; color: var(--teal); }
+  .type-sample-name span { font-size: 11px; color: var(--muted); letter-spacing: 0.06em; }
+
+  /* TOC */
+  .toc {
+    background: var(--white);
+    border-radius: 16px;
+    border: 0.5px solid var(--cream-edge);
+    padding: 2rem 2.5rem;
+    margin-bottom: 4rem;
+  }
+  .toc-title {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 1rem;
+  }
+  .toc ol {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    column-count: 2;
+    column-gap: 3rem;
+  }
+  .toc li {
+    padding: 0.4rem 0;
+    font-family: 'Playfair Display', serif;
+    font-size: 15px;
+    color: var(--teal);
+    break-inside: avoid;
+  }
+  .toc a {
+    color: inherit;
+    text-decoration: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+  }
+  .toc a:hover { color: var(--amber); }
+  .toc .num {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+  }
+
+  /* App icons */
+  .app-icon-row {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 2rem;
+    padding: 2rem 0;
+  }
+  .ios-tile { border-radius: 22.5%; box-shadow: 0 0 0 0.5px rgba(0,0,0,0.06); }
+
+  /* Footer */
+  .footer {
+    margin-top: 6rem;
+    padding-top: 2rem;
+    border-top: 0.5px solid var(--cream-edge);
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+  }
+
+  /* Print optimizations */
+  @media print {
+    body { background: white; }
+    .container { padding: 1rem; max-width: 100%; }
+    .section { margin-bottom: 2rem; page-break-inside: avoid; }
+    .cover { padding: 2rem 1rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ============ COVER ============ -->
+  <div class="cover">
+    <div class="cover-meta">Brand Folio · v1.0</div>
+    <svg viewBox="0 0 200 200" width="180" height="180" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="100" cy="100" r="60" fill="none" stroke="#E6A847" stroke-width="1.2" stroke-dasharray="3 4" opacity="0.55"/>
+      <circle cx="100" cy="40" r="9" fill="#114E5C"/><circle cx="152" cy="70" r="9" fill="#114E5C"/><circle cx="152" cy="130" r="9" fill="#114E5C"/><circle cx="100" cy="160" r="9" fill="#114E5C"/><circle cx="48" cy="130" r="9" fill="#114E5C"/><circle cx="48" cy="70" r="9" fill="#114E5C"/>
+      <circle cx="100" cy="100" r="26" fill="#E6A847"/>
+      <text x="100" y="112" text-anchor="middle" font-family="Playfair Display, serif" font-size="30" font-weight="700" fill="#114E5C">V</text>
+    </svg>
+    <div class="wm">Vital<span class="y">y</span>nx</div>
+    <div class="cover-title">Health · Connected · Empowered</div>
+  </div>
+
+  <!-- ============ TOC ============ -->
+  <div class="toc">
+    <div class="toc-title">Contents</div>
+    <ol>
+      <li><a href="#anatomy"><span>Anatomy</span><span class="num">01</span></a></li>
+      <li><a href="#lockups"><span>Lockups</span><span class="num">02</span></a></li>
+      <li><a href="#colour"><span>Colour system</span><span class="num">03</span></a></li>
+      <li><a href="#typography"><span>Typography</span><span class="num">04</span></a></li>
+      <li><a href="#variants"><span>Colour variants</span><span class="num">05</span></a></li>
+      <li><a href="#icons"><span>App icon &amp; favicon</span><span class="num">06</span></a></li>
+      <li><a href="#applications"><span>Applications</span><span class="num">07</span></a></li>
+      <li><a href="#donts"><span>Don'ts</span><span class="num">08</span></a></li>
+    </ol>
+  </div>
+
+  <!-- ============ ANATOMY ============ -->
+  <div class="section" id="anatomy">
+    <div class="section-num">01 · Anatomy</div>
+    <h2 class="section-title">The mark, decoded</h2>
+    <p class="section-sub">Three components, each carrying meaning. The Y is the pivot — both inside the mark (carried by the centre) and inside the wordmark (the only amber letter).</p>
+    <div class="panel">
+      <div class="anatomy">
+        <div class="center">
+          <svg viewBox="0 0 200 200" width="260" height="260" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="100" cy="100" r="60" fill="none" stroke="#E6A847" stroke-width="1.2" stroke-dasharray="3 4" opacity="0.85"/>
+            <circle cx="100" cy="40" r="9" fill="#114E5C"/><circle cx="152" cy="70" r="9" fill="#114E5C"/><circle cx="152" cy="130" r="9" fill="#114E5C"/><circle cx="100" cy="160" r="9" fill="#114E5C"/><circle cx="48" cy="130" r="9" fill="#114E5C"/><circle cx="48" cy="70" r="9" fill="#114E5C"/>
+            <circle cx="100" cy="100" r="26" fill="#E6A847"/>
+            <text x="100" y="112" text-anchor="middle" font-family="Playfair Display, serif" font-size="30" font-weight="700" fill="#114E5C">V</text>
+          </svg>
+        </div>
+        <div>
+          <div class="anatomy-item">
+            <div class="anatomy-label">Six dots</div>
+            <div class="anatomy-desc">Family members. Hexagonal arrangement reads as balance — no member subordinate to another.</div>
+          </div>
+          <div class="anatomy-item">
+            <div class="anatomy-label">Amber centre</div>
+            <div class="anatomy-desc">The user — adult caregiver at the heart, holding the V of Vitalynx. The pivot of the family.</div>
+          </div>
+          <div class="anatomy-item">
+            <div class="anatomy-label">Dashed orbit</div>
+            <div class="anatomy-desc">The shared connection. Dashed rather than solid — relationships are continuous, not rigid.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ LOCKUPS ============ -->
+  <div class="section" id="lockups">
+    <div class="section-num">02 · Lockups</div>
+    <h2 class="section-title">Three configurations</h2>
+    <p class="section-sub">Horizontal for headers and emails. Mark alone for app icons and social. Wordmark alone for tight horizontal contexts.</p>
+
+    <div class="panel" style="margin-bottom: 1rem;">
+      <div class="center" style="gap: 2rem; padding: 1rem 0;">
+        <svg viewBox="0 0 200 200" width="120" height="120" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="100" cy="100" r="60" fill="none" stroke="#E6A847" stroke-width="1.5" stroke-dasharray="3 4" opacity="0.55"/>
+          <circle cx="100" cy="40" r="9" fill="#114E5C"/><circle cx="152" cy="70" r="9" fill="#114E5C"/><circle cx="152" cy="130" r="9" fill="#114E5C"/><circle cx="100" cy="160" r="9" fill="#114E5C"/><circle cx="48" cy="130" r="9" fill="#114E5C"/><circle cx="48" cy="70" r="9" fill="#114E5C"/>
+          <circle cx="100" cy="100" r="26" fill="#E6A847"/>
+          <text x="100" y="112" text-anchor="middle" font-family="Playfair Display, serif" font-size="30" font-weight="700" fill="#114E5C">V</text>
+        </svg>
+        <div class="wm" style="font-size: 58px;">Vital<span class="y">y</span>nx</div>
+      </div>
+      <div class="label">Horizontal lockup</div>
+    </div>
+
+    <div class="grid-2">
+      <div class="panel">
+        <div class="center" style="height: 160px;">
+          <svg viewBox="0 0 200 200" width="140" height="140" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="100" cy="100" r="60" fill="none" stroke="#E6A847" stroke-width="1.5" stroke-dasharray="3 4" opacity="0.55"/>
+            <circle cx="100" cy="40" r="9" fill="#114E5C"/><circle cx="152" cy="70" r="9" fill="#114E5C"/><circle cx="152" cy="130" r="9" fill="#114E5C"/><circle cx="100" cy="160" r="9" fill="#114E5C"/><circle cx="48" cy="130" r="9" fill="#114E5C"/><circle cx="48" cy="70" r="9" fill="#114E5C"/>
+            <circle cx="100" cy="100" r="26" fill="#E6A847"/>
+            <text x="100" y="112" text-anchor="middle" font-family="Playfair Display, serif" font-size="30" font-weight="700" fill="#114E5C">V</text>
+          </svg>
+        </div>
+        <div class="label">Mark only</div>
+      </div>
+      <div class="panel">
+        <div class="center" style="height: 160px;">
+          <div class="wm" style="font-size: 52px;">Vital<span class="y">y</span>nx</div>
+        </div>
+        <div class="label">Wordmark only</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ COLOUR ============ -->
+  <div class="section" id="colour">
+    <div class="section-num">03 · Colour system</div>
+    <h2 class="section-title">Two primaries, two supports</h2>
+    <p class="section-sub">Petrol teal carries authority and calm. Amber gold carries warmth and India-resonance. Cream provides a warm surface; deep petrol handles dark text.</p>
+    <div class="grid-2">
+      <div class="swatch" style="background: var(--teal); color: white;">
+        <div>
+          <div class="swatch-role">Primary</div>
+          <div class="swatch-name" style="margin-top: 0.5rem;">Petrol teal</div>
+        </div>
+        <div class="swatch-meta">HEX&nbsp;&nbsp;#114E5C<br>RGB&nbsp;&nbsp;17, 78, 92<br>CMYK&nbsp;82, 38, 35, 60</div>
+      </div>
+      <div class="swatch" style="background: var(--amber); color: #5A3F0E;">
+        <div>
+          <div class="swatch-role">Accent</div>
+          <div class="swatch-name" style="margin-top: 0.5rem;">Amber gold</div>
+        </div>
+        <div class="swatch-meta">HEX&nbsp;&nbsp;#E6A847<br>RGB&nbsp;&nbsp;230, 168, 71<br>CMYK&nbsp;0, 27, 69, 10</div>
+      </div>
+      <div class="swatch" style="background: var(--cream); border: 0.5px solid var(--cream-edge); color: var(--teal);">
+        <div>
+          <div class="swatch-role">Surface</div>
+          <div class="swatch-name" style="margin-top: 0.5rem;">Cream</div>
+        </div>
+        <div class="swatch-meta">HEX&nbsp;&nbsp;#FAF6EE<br>RGB&nbsp;&nbsp;250, 246, 238<br>Use for: backgrounds</div>
+      </div>
+      <div class="swatch" style="background: var(--teal-deep); color: white;">
+        <div>
+          <div class="swatch-role">Text</div>
+          <div class="swatch-name" style="margin-top: 0.5rem;">Deep petrol</div>
+        </div>
+        <div class="swatch-meta">HEX&nbsp;&nbsp;#0A3942<br>RGB&nbsp;&nbsp;10, 57, 66<br>Use for: dark text</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ TYPOGRAPHY ============ -->
+  <div class="section" id="typography">
+    <div class="section-num">04 · Typography</div>
+    <h2 class="section-title">A serif for the brand, a sans for the everyday</h2>
+    <p class="section-sub">Playfair Display carries the wordmark and headlines — its high-contrast strokes feel premium without being cold. Inter handles every other surface.</p>
+    <div class="panel" style="margin-bottom: 1rem;">
+      <div style="font-family: 'Playfair Display', serif; font-weight: 700; font-size: 76px; color: var(--teal); line-height: 1; letter-spacing: -0.015em; margin-bottom: 0.5rem;">Aa&nbsp;Bb&nbsp;Cc</div>
+      <div style="font-family: 'Playfair Display', serif; font-weight: 500; font-size: 22px; color: var(--teal); line-height: 1.4;">The quick brown lynx watches over the family.</div>
+      <div class="type-sample-name"><strong>Playfair Display</strong><span>WORDMARK · DISPLAY · HEADINGS</span></div>
+    </div>
+    <div class="panel">
+      <div style="font-family: 'Inter', sans-serif; font-weight: 500; font-size: 52px; color: var(--teal); line-height: 1.1; margin-bottom: 0.5rem;">Aa&nbsp;Bb&nbsp;Cc</div>
+      <div style="font-family: 'Inter', sans-serif; font-weight: 400; font-size: 16px; color: var(--teal); line-height: 1.6;">The quick brown lynx watches over the family. Used for body text, captions, and product UI throughout the app.</div>
+      <div class="type-sample-name"><strong>Inter</strong><span>BODY · UI · TAGLINE</span></div>
+    </div>
+  </div>
+
+  <!-- ============ COLOUR VARIANTS ============ -->
+  <div class="section" id="variants">
+    <div class="section-num">05 · Colour variants</div>
+    <h2 class="section-title">For every surface</h2>
+    <p class="section-sub">Use the full-colour mark wherever possible. Monochromes are reserved for single-colour print, embossing, and watermark contexts.</p>
+    <div class="grid-2">
+      <div class="panel center col" style="gap: 1.25rem; aspect-ratio: 4/3;">
+        <svg viewBox="0 0 200 200" width="110" height="110" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="100" cy="100" r="60" fill="none" stroke="#E6A847" stroke-width="1.5" stroke-dasharray="3 4" opacity="0.55"/>
+          <circle cx="100" cy="40" r="9" fill="#114E5C"/><circle cx="152" cy="70" r="9" fill="#114E5C"/><circle cx="152" cy="130" r="9" fill="#114E5C"/><circle cx="100" cy="160" r="9" fill="#114E5C"/><circle cx="48" cy="130" r="9" fill="#114E5C"/><circle cx="48" cy="70" r="9" fill="#114E5C"/>
+          <circle cx="100" cy="100" r="26" fill="#E6A847"/>
+          <text x="100" y="112" text-anchor="middle" font-family="Playfair Display, serif" font-size="30" font-weight="700" fill="#114E5C">V</text>
+        </svg>
+        <div class="wm" style="font-size: 34px;">Vital<span class="y">y</span>nx</div>
+        <div class="label">Full colour · light</div>
+      </div>
+      <div class="panel dark center col" style="gap: 1.25rem; aspect-ratio: 4/3;">
+        <svg viewBox="0 0 200 200" width="110" height="110" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="100" cy="100" r="60" fill="none" stroke="#E6A847" stroke-width="1.5" stroke-dasharray="3 4" opacity="0.8"/>
+          <circle cx="100" cy="40" r="9" fill="#FAF6EE"/><circle cx="152" cy="70" r="9" fill="#FAF6EE"/><circle cx="152" cy="130" r="9" fill="#FAF6EE"/><circle cx="100" cy="160" r="9" fill="#FAF6EE"/><circle cx="48" cy="130" r="9" fill="#FAF6EE"/><circle cx="48" cy="70" r="9" fill="#FAF6EE"/>
+          <circle cx="100" cy="100" r="26" fill="#E6A847"/>
+          <text x="100" y="112" text-anchor="middle" font-family="Playfair Display, serif" font-size="30" font-weight="700" fill="#114E5C">V</text>
+        </svg>
+        <div class="wm wm-white" style="font-size: 34px;">Vital<span class="y">y</span>nx</div>
+        <div class="label on-dark">Full colour · dark</div>
+      </div>
+      <div class="panel center col" style="gap: 1.25rem; aspect-ratio: 4/3;">
+        <svg viewBox="0 0 200 200" width="110" height="110" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="100" cy="100" r="60" fill="none" stroke="#114E5C" stroke-width="1.5" stroke-dasharray="3 4" opacity="0.45"/>
+          <circle cx="100" cy="40" r="9" fill="#114E5C"/><circle cx="152" cy="70" r="9" fill="#114E5C"/><circle cx="152" cy="130" r="9" fill="#114E5C"/><circle cx="100" cy="160" r="9" fill="#114E5C"/><circle cx="48" cy="130" r="9" fill="#114E5C"/><circle cx="48" cy="70" r="9" fill="#114E5C"/>
+          <circle cx="100" cy="100" r="26" fill="none" stroke="#114E5C" stroke-width="3"/>
+          <text x="100" y="112" text-anchor="middle" font-family="Playfair Display, serif" font-size="30" font-weight="700" fill="#114E5C">V</text>
+        </svg>
+        <div style="font-family: 'Playfair Display', serif; font-weight: 700; font-size: 34px; color: var(--teal); letter-spacing: -0.01em; line-height: 1;">Vitalynx</div>
+        <div class="label">Monochrome · teal</div>
+      </div>
+      <div class="panel dark center col" style="gap: 1.25rem; aspect-ratio: 4/3;">
+        <svg viewBox="0 0 200 200" width="110" height="110" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="100" cy="100" r="60" fill="none" stroke="#FAF6EE" stroke-width="1.5" stroke-dasharray="3 4" opacity="0.45"/>
+          <circle cx="100" cy="40" r="9" fill="#FAF6EE"/><circle cx="152" cy="70" r="9" fill="#FAF6EE"/><circle cx="152" cy="130" r="9" fill="#FAF6EE"/><circle cx="100" cy="160" r="9" fill="#FAF6EE"/><circle cx="48" cy="130" r="9" fill="#FAF6EE"/><circle cx="48" cy="70" r="9" fill="#FAF6EE"/>
+          <circle cx="100" cy="100" r="26" fill="none" stroke="#FAF6EE" stroke-width="3"/>
+          <text x="100" y="112" text-anchor="middle" font-family="Playfair Display, serif" font-size="30" font-weight="700" fill="#FAF6EE">V</text>
+        </svg>
+        <div style="font-family: 'Playfair Display', serif; font-weight: 700; font-size: 34px; color: var(--cream); letter-spacing: -0.01em; line-height: 1;">Vitalynx</div>
+        <div class="label on-dark">Monochrome · reversed</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ APP ICONS ============ -->
+  <div class="section" id="icons">
+    <div class="section-num">06 · App icon &amp; favicon</div>
+    <h2 class="section-title">Scaling down without losing identity</h2>
+    <p class="section-sub">The app icon centres the mark on amber. The favicon further reduces to the V alone — recognizable at 16px.</p>
+    <div class="panel">
+      <div class="app-icon-row">
+        <div class="col" style="align-items: center;">
+          <div class="ios-tile" style="width: 140px; height: 140px; background: #E6A847; display: flex; align-items: center; justify-content: center;">
+            <svg viewBox="0 0 200 200" width="110" height="110" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="100" cy="100" r="60" fill="none" stroke="#FAF6EE" stroke-width="2" stroke-dasharray="4 5" opacity="0.5"/>
+              <circle cx="100" cy="40" r="10" fill="#114E5C"/><circle cx="152" cy="70" r="10" fill="#114E5C"/><circle cx="152" cy="130" r="10" fill="#114E5C"/><circle cx="100" cy="160" r="10" fill="#114E5C"/><circle cx="48" cy="130" r="10" fill="#114E5C"/><circle cx="48" cy="70" r="10" fill="#114E5C"/>
+              <circle cx="100" cy="100" r="28" fill="#114E5C"/>
+              <text x="100" y="113" text-anchor="middle" font-family="Playfair Display, serif" font-size="32" font-weight="700" fill="#E6A847">V</text>
+            </svg>
+          </div>
+          <div class="label">App icon · 1024px master</div>
+        </div>
+        <div class="col" style="align-items: center; gap: 0.75rem;">
+          <div class="ios-tile" style="width: 88px; height: 88px; background: #E6A847; display: flex; align-items: center; justify-content: center;">
+            <svg viewBox="0 0 200 200" width="68" height="68" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="100" cy="40" r="11" fill="#FAF6EE"/><circle cx="152" cy="70" r="11" fill="#FAF6EE"/><circle cx="152" cy="130" r="11" fill="#FAF6EE"/><circle cx="100" cy="160" r="11" fill="#FAF6EE"/><circle cx="48" cy="130" r="11" fill="#FAF6EE"/><circle cx="48" cy="70" r="11" fill="#FAF6EE"/>
+              <circle cx="100" cy="100" r="30" fill="#114E5C"/>
+              <text x="100" y="115" text-anchor="middle" font-family="Playfair Display, serif" font-size="36" font-weight="700" fill="#E6A847">V</text>
+            </svg>
+          </div>
+          <div class="ios-tile" style="width: 48px; height: 48px; background: #E6A847; display: flex; align-items: center; justify-content: center;">
+            <span style="font-family: 'Playfair Display', serif; font-weight: 700; font-size: 28px; color: #114E5C;">V</span>
+          </div>
+          <div class="label" style="margin-top: 0.5rem;">88px · 48px</div>
+        </div>
+        <div class="col" style="align-items: center; gap: 0.5rem;">
+          <div style="width: 32px; height: 32px; background: #E6A847; border-radius: 6px; display: flex; align-items: center; justify-content: center;">
+            <span style="font-family: 'Playfair Display', serif; font-weight: 700; font-size: 22px; color: #114E5C;">V</span>
+          </div>
+          <div style="width: 16px; height: 16px; background: #E6A847; border-radius: 3px; display: flex; align-items: center; justify-content: center;">
+            <span style="font-family: 'Playfair Display', serif; font-weight: 700; font-size: 12px; color: #114E5C;">V</span>
+          </div>
+          <div class="label" style="margin-top: 0.5rem;">Favicon · 32 · 16</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ APPLICATIONS ============ -->
+  <div class="section" id="applications">
+    <div class="section-num">07 · Applications</div>
+    <h2 class="section-title">In the wild</h2>
+    <p class="section-sub">Sample applications across product, print, and social.</p>
+    <div class="grid-2">
+      <div class="biz-card">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <div class="biz-name">Vital<span style="color: #E6A847;">y</span>nx</div>
+            <div class="biz-tagline">Health · Connected · Empowered</div>
+          </div>
+          <svg viewBox="0 0 200 200" width="54" height="54" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="100" cy="100" r="60" fill="none" stroke="#E6A847" stroke-width="3" stroke-dasharray="4 5" opacity="0.55"/>
+            <circle cx="100" cy="40" r="11" fill="#114E5C"/><circle cx="152" cy="70" r="11" fill="#114E5C"/><circle cx="152" cy="130" r="11" fill="#114E5C"/><circle cx="100" cy="160" r="11" fill="#114E5C"/><circle cx="48" cy="130" r="11" fill="#114E5C"/><circle cx="48" cy="70" r="11" fill="#114E5C"/>
+            <circle cx="100" cy="100" r="30" fill="#E6A847"/>
+            <text x="100" y="115" text-anchor="middle" font-family="Playfair Display, serif" font-size="36" font-weight="700" fill="#114E5C">V</text>
+          </svg>
+        </div>
+        <div>
+          <div class="biz-person">Priya Iyer</div>
+          <div class="biz-title">Co-founder &amp; CEO</div>
+        </div>
+      </div>
+      <div class="promo-card">
+        <div>
+          <svg viewBox="0 0 200 200" width="42" height="42" xmlns="http://www.w3.org/2000/svg" style="margin-bottom: 0.75rem;">
+            <circle cx="100" cy="100" r="60" fill="none" stroke="#E6A847" stroke-width="3" stroke-dasharray="4 5" opacity="0.7"/>
+            <circle cx="100" cy="40" r="11" fill="#FAF6EE"/><circle cx="152" cy="70" r="11" fill="#FAF6EE"/><circle cx="152" cy="130" r="11" fill="#FAF6EE"/><circle cx="100" cy="160" r="11" fill="#FAF6EE"/><circle cx="48" cy="130" r="11" fill="#FAF6EE"/><circle cx="48" cy="70" r="11" fill="#FAF6EE"/>
+            <circle cx="100" cy="100" r="30" fill="#E6A847"/>
+            <text x="100" y="115" text-anchor="middle" font-family="Playfair Display, serif" font-size="36" font-weight="700" fill="#114E5C">V</text>
+          </svg>
+          <div class="promo-head">Your family's<br>health, together.</div>
+        </div>
+        <div class="promo-cta">Download · iOS &amp; Android</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ DON'TS ============ -->
+  <div class="section" id="donts">
+    <div class="section-num">08 · Don'ts</div>
+    <h2 class="section-title">Protect the mark</h2>
+    <p class="section-sub">The orbit, colour, and proportions are non-negotiable. Below: common misuses to avoid.</p>
+    <div class="grid-4">
+      <div class="dont">
+        <div class="dont-x">✕</div>
+        <svg viewBox="0 0 200 200" width="70" height="70" xmlns="http://www.w3.org/2000/svg" style="transform: scaleX(1.4);">
+          <circle cx="100" cy="100" r="60" fill="none" stroke="#E6A847" stroke-width="2" stroke-dasharray="3 4"/>
+          <circle cx="100" cy="40" r="9" fill="#114E5C"/><circle cx="152" cy="70" r="9" fill="#114E5C"/><circle cx="152" cy="130" r="9" fill="#114E5C"/><circle cx="100" cy="160" r="9" fill="#114E5C"/><circle cx="48" cy="130" r="9" fill="#114E5C"/><circle cx="48" cy="70" r="9" fill="#114E5C"/>
+          <circle cx="100" cy="100" r="26" fill="#E6A847"/>
+          <text x="100" y="112" text-anchor="middle" font-family="Playfair Display, serif" font-size="30" font-weight="700" fill="#114E5C">V</text>
+        </svg>
+        <div class="dont-text">Never stretch or distort</div>
+      </div>
+      <div class="dont">
+        <div class="dont-x">✕</div>
+        <svg viewBox="0 0 200 200" width="70" height="70" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="100" cy="100" r="60" fill="none" stroke="#A32D2D" stroke-width="2" stroke-dasharray="3 4"/>
+          <circle cx="100" cy="40" r="9" fill="#7C3AED"/><circle cx="152" cy="70" r="9" fill="#7C3AED"/><circle cx="152" cy="130" r="9" fill="#7C3AED"/><circle cx="100" cy="160" r="9" fill="#7C3AED"/><circle cx="48" cy="130" r="9" fill="#7C3AED"/><circle cx="48" cy="70" r="9" fill="#7C3AED"/>
+          <circle cx="100" cy="100" r="26" fill="#A32D2D"/>
+          <text x="100" y="112" text-anchor="middle" font-family="Playfair Display, serif" font-size="30" font-weight="700" fill="#FFFFFF">V</text>
+        </svg>
+        <div class="dont-text">Never recolour off-system</div>
+      </div>
+      <div class="dont">
+        <div class="dont-x">✕</div>
+        <svg viewBox="0 0 200 200" width="70" height="70" xmlns="http://www.w3.org/2000/svg" style="transform: rotate(28deg);">
+          <circle cx="100" cy="100" r="60" fill="none" stroke="#E6A847" stroke-width="2" stroke-dasharray="3 4"/>
+          <circle cx="100" cy="40" r="9" fill="#114E5C"/><circle cx="152" cy="70" r="9" fill="#114E5C"/><circle cx="152" cy="130" r="9" fill="#114E5C"/><circle cx="100" cy="160" r="9" fill="#114E5C"/><circle cx="48" cy="130" r="9" fill="#114E5C"/><circle cx="48" cy="70" r="9" fill="#114E5C"/>
+          <circle cx="100" cy="100" r="26" fill="#E6A847"/>
+          <text x="100" y="112" text-anchor="middle" font-family="Playfair Display, serif" font-size="30" font-weight="700" fill="#114E5C">V</text>
+        </svg>
+        <div class="dont-text">Never rotate the mark</div>
+      </div>
+      <div class="dont">
+        <div class="dont-x">✕</div>
+        <div style="font-family: 'Playfair Display', serif; font-weight: 700; font-size: 20px; color: var(--teal); letter-spacing: 0.15em; line-height: 1;">VITAL<span style="color: var(--amber);">Y</span>NX</div>
+        <div class="dont-text">Never use all-caps</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ FOOTER ============ -->
+  <div class="footer">
+    <span>Vitalynx · Brand Folio · v1.0</span>
+    <span>Health · Connected · Empowered</span>
+  </div>
+
+</div>
+</body>
+</html>

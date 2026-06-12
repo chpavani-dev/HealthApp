@@ -4,20 +4,23 @@
     "slug": "HealthApp",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/branding/icons/vitalynx-app-icon-1024.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "icon": "./assets/branding/icons/vitalynx-app-icon-1024.png"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#0B8FAC"
+        "foregroundImage": "./assets/branding/marks/vitalynx-mark-400x400.png",
+        "backgroundColor": "#F9C46E"
       },
       "edgeToEdgeEnabled": true,
       "package": "com.anonymous.HealthApp"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/branding/icons/vitalynx-app-icon-192.png"
     },
     "extra": {
       "eas": {
