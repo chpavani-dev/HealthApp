@@ -293,7 +293,4 @@ const styles = StyleSheet.create({
  loadingLogo:  { width: 240, height: 80, marginBottom: 8 },
 });
 
-registerRootComponent(Sentry.wrap(App));lor: '#0B8FAC' },
-});
-
 registerRootComponent(Sentry.wrap(App));
