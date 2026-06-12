@@ -7,7 +7,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
-  TextInput, KeyboardAvoidingView, Platform, ScrollView,
+  TextInput, KeyboardAvoidingView, Platform, ScrollView, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CountryPicker, { getCountryByCode } from './CountryPicker';
@@ -120,9 +120,11 @@ export default function SupabaseLoginScreen({ onCodeSent }) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.logoBox}>
-            <Text style={styles.logoEmoji}>🏥</Text>
-            <Text style={styles.logoTitle}>Vitalynx</Text>
+         <Image
+              source={require('../assets/branding/horizontal/vitalynx-logo-horizontal-400.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
             <Text style={styles.logoSubtitle}>Family health records, made simple</Text>
           </View>
 
@@ -205,8 +207,7 @@ const styles = StyleSheet.create({
   scroll:         { flexGrow: 1, padding: 24, paddingTop: 60, paddingBottom: 40 },
 
   logoBox:        { alignItems: 'center', marginBottom: 32 },
-  logoEmoji:      { fontSize: 56, marginBottom: 8 },
-  logoTitle:      { fontSize: 28, fontWeight: '800', color: DARK, letterSpacing: -0.5 },
+ logoImage:      { width: 260, height: 80, marginBottom: 8 },
   logoSubtitle:   { fontSize: 14, color: GRAY, marginTop: 4 },
 
   formCard:       { backgroundColor: '#FFF', borderRadius: 16, padding: 22,
@@ -240,4 +241,9 @@ const styles = StyleSheet.create({
 
   footerText:     { fontSize: 11, color: GRAY, textAlign: 'center', marginTop: 24,
                     paddingHorizontal: 20, lineHeight: 16 },
+});
+marginTop: 24,
+                    paddingHorizontal: 20, lineHeight: 16 },
+});
+zontal: 20, lineHeight: 16 },
 });
