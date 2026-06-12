@@ -62,7 +62,7 @@ export default function LoginScreen({ onLogin }) {
             <View style={s.logoCircle}>
               <Text style={s.logoEmoji}>🏥</Text>
             </View>
-            <Text style={s.appName}>MedRecord</Text>
+            <Text style={s.appName}>Vitalynx</Text>
             <Text style={s.appTagline}>Your health, organised</Text>
           </View>
 

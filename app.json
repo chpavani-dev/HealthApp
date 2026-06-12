@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "HealthApp",
-    "slug": "HealthApp",
-    "version": "1.0.0",
+   "name": "Vitalynx",
+"slug": "HealthApp",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/branding/icons/vitalynx-app-icon-1024.png",
     "userInterfaceStyle": "light",
@@ -36,7 +36,15 @@
           "organization": "medrecord-r1"
         }
       ],
-      "expo-localization"
+      "expo-localization",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/branding/vertical/vitalynx-logo-vertical-400.png",
+          "backgroundColor": "#F9C46E",
+          "imageWidth": 240
+        }
+      ]
     ]
   }
 }

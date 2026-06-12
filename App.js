@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StatusBar } from 'expo-status-bar';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Image } from 'react-native';
 import { registerRootComponent } from 'expo';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -202,10 +202,13 @@ for (const m of allMembers) pushFamilyMember(m).catch(() => {});
 
   if (loading) {
     return (
-      <View style={styles.loadingWrap}>
-        <Text style={styles.loadingEmoji}>🏥</Text>
-        <Text style={styles.loadingText}>MedRecord</Text>
-        <ActivityIndicator color="#0B8FAC" style={{ marginTop: 20 }} />
+  <View style={styles.loadingWrap}>
+        <Image
+          source={require('./assets/branding/horizontal/vitalynx-logo-horizontal-400.png')}
+          style={styles.loadingLogo}
+          resizeMode="contain"
+        />
+        <ActivityIndicator color="#0B8FAC" style={{ marginTop: 24 }} />
       </View>
     );
   }
@@ -287,8 +290,10 @@ const styles = StyleSheet.create({
   iconWrapActive: { backgroundColor: '#E8F7FA' },
   iconEmoji:    { fontSize: 20 },
   loadingWrap:  { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F5F7FA' },
-  loadingEmoji: { fontSize: 52, marginBottom: 12 },
-  loadingText:  { fontSize: 24, fontWeight: '800', color: '#0B8FAC' },
+ loadingLogo:  { width: 240, height: 80, marginBottom: 8 },
+});
+
+registerRootComponent(Sentry.wrap(App));lor: '#0B8FAC' },
 });
 
 registerRootComponent(Sentry.wrap(App));

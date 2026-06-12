@@ -122,7 +122,7 @@ export default function SupabaseLoginScreen({ onCodeSent }) {
         >
           <View style={styles.logoBox}>
             <Text style={styles.logoEmoji}>🏥</Text>
-            <Text style={styles.logoTitle}>MedRecord</Text>
+            <Text style={styles.logoTitle}>Vitalynx</Text>
             <Text style={styles.logoSubtitle}>Family health records, made simple</Text>
           </View>
 
@@ -186,7 +186,7 @@ export default function SupabaseLoginScreen({ onCodeSent }) {
           </View>
 
           <Text style={styles.footerText}>
-            By continuing, you agree to MedRecord's Terms of Service and Privacy Policy.
+            By continuing, you agree to Vitalynx's Terms of Service and Privacy Policy.
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>
