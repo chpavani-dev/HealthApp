@@ -156,11 +156,11 @@ export async function saveTimelineValues(values, memberId) {
   } catch (e) { console.log('Save timeline error:', e); }
 }
 
-export async function addTimelineEntry(metricId, value, date, memberId) {
+export async function addTimelineEntry(metricId, value, date, memberId, isAbnormal = false) {
   const existing = await getTimelineValues(memberId);
   if (!existing[metricId]) existing[metricId] = [];
   const filtered = existing[metricId].filter(e => e.date !== date);
-  existing[metricId] = [...filtered, { date, value }]
+  existing[metricId] = [...filtered, { date, value, isAbnormal }]
     .sort((a, b) => new Date(a.date) - new Date(b.date));
   await saveTimelineValues(existing, memberId);
   pushTimelineEntry(metricId, value, date, memberId).catch(() => {});
@@ -500,11 +500,12 @@ export async function saveLabReportFromAI(parsed, memberId, overrides = {}) {
     await addReport(report, memberId);
     reportsSaved += 1;
 
-    for (const t of panel.tests) {
+  for (const t of panel.tests) {
       if (!t || typeof t.value !== 'number') continue;
       const metricId = canonicalToMetricId(t.name);
       if (!metricId) continue;
-      await addTimelineEntry(metricId, t.value, reportDate, memberId);
+      const isAbnormal = ['low','high','critical_low','critical_high','abnormal'].includes(t.flag);
+      await addTimelineEntry(metricId, t.value, reportDate, memberId, isAbnormal);
       valuesAdded += 1;
     }
   }

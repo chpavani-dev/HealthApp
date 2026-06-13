@@ -101,12 +101,13 @@ function formatPointDate(any) {
 
 // ── Status helpers ───────────────────────────────────────────────────
 function getStatus(value, metric) {
-  if (metric.unknownRange) return 'normal';
+  if (metric.unknownRange) {
+    return metric.isAbnormal ? 'high' : 'normal';
+  }
   if (value >= metric.normal.min && value <= metric.normal.max) return 'normal';
   if (value <= metric.warningMax) return 'warning';
   return 'high';
 }
-
 function statusColor(status) {
   if (status === 'normal')  return GREEN;
   if (status === 'warning') return ORANGE;
@@ -424,20 +425,24 @@ export default function TimelineScreen({ activeMember }) {
       const hasAnyRealData = storedKeys.length > 0;
       setShowSampleData(!hasAnyRealData);
 
-      const tier1Built = tier1.map(metricId => {
+     const tier1Built = tier1.map(metricId => {
         const def = METRIC_DEFS[metricId] || genericDef(metricId);
         const realData = stored[metricId] || [];
         let data = realData;
         if (data.length === 0 && !hasAnyRealData) {
           data = SAMPLE_DATA[metricId] || [];
         }
-        return { ...def, data };
+        const latestPoint = data[data.length - 1];
+        const isAbnormal = latestPoint?.isAbnormal ?? false;
+        return { ...def, data, isAbnormal };
       }).filter(m => m.data.length > 0);
 
-      const autoBuilt = promotedIds.map(metricId => {
+     const autoBuilt = promotedIds.map(metricId => {
         const def = METRIC_DEFS[metricId] || genericDef(metricId);
         const realData = stored[metricId] || [];
-        return { ...def, data: realData };
+        const latestPoint = realData[realData.length - 1];
+        const isAbnormal = latestPoint?.isAbnormal ?? false;
+        return { ...def, data: realData, isAbnormal };
       }).filter(m => m.data.length > 0);
 
    
