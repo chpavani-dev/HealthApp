@@ -19,7 +19,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabase';
-import { key } from './storage';
+import { key, canonicalToMetricId } from './storage';
 
 // ====================================================================
 // State
@@ -447,15 +447,34 @@ async function pullReportsForMember(memberId) {
     .eq('member_id', memberId)
     .order('created_at', { ascending: true });
   if (error) { console.warn(`[cloudSync] pull lab_reports failed:`, error.message); return; }
-
   const remote = (data || []).map(labReportFromSupabase);
   const storageKey = key('reports', memberId);
   const localRaw = await AsyncStorage.getItem(storageKey);
   const local = localRaw ? JSON.parse(localRaw) : [];
   const merged = mergeById(local, remote);
   await AsyncStorage.setItem(storageKey, JSON.stringify(merged));
+  // Derive timeline entries with abnormal flags from the synced reports' tests JSONB.
+  // This is necessary because timeline_entries cloud table doesn't carry isAbnormal.
+  const timelineKey = key('timeline', memberId);
+  const timelineLocalRaw = await AsyncStorage.getItem(timelineKey);
+  const timelineLocal = timelineLocalRaw ? JSON.parse(timelineLocalRaw) : {};
+  for (const report of merged) {
+    if (!Array.isArray(report.tests)) continue;
+    const reportDate = report.date;
+    if (!reportDate) continue;
+    for (const t of report.tests) {
+      if (!t || typeof t.value !== 'number') continue;
+      const metricId = canonicalToMetricId(t.name);
+      if (!metricId) continue;
+      const isAbnormal = ['low','high','critical_low','critical_high','abnormal'].includes(t.flag);
+      if (!timelineLocal[metricId]) timelineLocal[metricId] = [];
+      const filtered = timelineLocal[metricId].filter(e => e.date !== reportDate);
+      timelineLocal[metricId] = [...filtered, { date: reportDate, value: t.value, isAbnormal }]
+        .sort((a, b) => new Date(a.date) - new Date(b.date));
+    }
+  }
+  await AsyncStorage.setItem(timelineKey, JSON.stringify(timelineLocal));
 }
-
 async function pullPrescriptionsForMember(memberId) {
   const { data, error } = await supabase
     .from('prescriptions')
@@ -471,7 +490,6 @@ async function pullPrescriptionsForMember(memberId) {
   const merged = mergeById(local, remote);
   await AsyncStorage.setItem(storageKey, JSON.stringify(merged));
 }
-
 async function pullTimelineForMember(memberId) {
   const { data, error } = await supabase
     .from('timeline_entries')
@@ -479,6 +497,25 @@ async function pullTimelineForMember(memberId) {
     .eq('member_id', memberId)
     .order('date', { ascending: true });
   if (error) { console.warn(`[cloudSync] pull timeline_entries failed:`, error.message); return; }
+  // Group Supabase rows back into local { metricId: [{date, value}, ...] } shape
+  const remoteGrouped = groupTimelineFromSupabase(data || []);
+  const storageKey = key('timeline', memberId);
+  const localRaw = await AsyncStorage.getItem(storageKey);
+  const local = localRaw ? JSON.parse(localRaw) : {};
+  const merged = { ...local };
+  for (const metricId of Object.keys(remoteGrouped)) {
+    const byDate = new Map();
+    for (const e of (local[metricId] || [])) {
+      if (e?.date) byDate.set(e.date, e);
+    }
+    for (const e of remoteGrouped[metricId]) {
+      byDate.set(e.date, e);
+    }
+    merged[metricId] = Array.from(byDate.values())
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+  }
+  await AsyncStorage.setItem(storageKey, JSON.stringify(merged));
+}
 
 async function pullNotesForMember(memberId) {
   const { data, error } = await supabase
@@ -510,60 +547,42 @@ async function pullNotesForMember(memberId) {
   await AsyncStorage.setItem(doctorKey, JSON.stringify(doctorMerged));
 }
 
-  // Group Supabase rows back into local { metricId: [{date, value}, ...] } shape
-  const remoteGrouped = groupTimelineFromSupabase(data || []);
-
-  // Merge with local — for timeline, prefer remote (it's the merged source of truth for this user)
-  // because timeline entries are append-only and don't have per-entry timestamps.
-  const storageKey = key('timeline', memberId);
-  const localRaw = await AsyncStorage.getItem(storageKey);
-  const local = localRaw ? JSON.parse(localRaw) : {};
-
-  const merged = { ...local };
-  for (const metricId of Object.keys(remoteGrouped)) {
-    // Combine local + remote entries, dedup by date (latest value wins per date)
-    const byDate = new Map();
-    for (const e of (local[metricId] || [])) {
-      if (e?.date) byDate.set(e.date, e);
-    }
-    for (const e of remoteGrouped[metricId]) {
-      byDate.set(e.date, e);  // remote wins on tie
-    }
-    merged[metricId] = Array.from(byDate.values())
-      .sort((a, b) => new Date(a.date) - new Date(b.date));
-  }
-
-  await AsyncStorage.setItem(storageKey, JSON.stringify(merged));
-}
-
 export async function pullAllForUser(userId) {
   if (!userId) return { error: 'no_user' };
   if (syncing) return { error: 'busy' };
-
   syncing = true;
+  let totalReports = 0;
+  let totalRx = 0;
+  let totalTimeline = 0;
+  let totalNotes = 0;
+  let errors = [];
   try {
     const members = await pullMembers(userId);
-
     for (const m of members) {
       if (!m.id || m.id === 'default') continue;
-      await pullReportsForMember(m.id);
-      await pullPrescriptionsForMember(m.id);
-      await pullTimelineForMember(m.id);
-      await pullNotesForMember(m.id);
+      try {
+        const beforeR = await AsyncStorage.getItem(key('reports', m.id));
+        const beforeCount = beforeR ? JSON.parse(beforeR).length : 0;
+        await pullReportsForMember(m.id);
+        const afterR = await AsyncStorage.getItem(key('reports', m.id));
+        const afterCount = afterR ? JSON.parse(afterR).length : 0;
+        totalReports += afterCount;
+      } catch (e) { errors.push(`reports[${m.name || m.id}]: ${e.message}`); }
+      try { await pullPrescriptionsForMember(m.id); } catch (e) { errors.push(`rx[${m.name || m.id}]: ${e.message}`); }
+      try { await pullTimelineForMember(m.id); } catch (e) { errors.push(`tl[${m.name || m.id}]: ${e.message}`); }
+      try { await pullNotesForMember(m.id); } catch (e) { errors.push(`notes[${m.name || m.id}]: ${e.message}`); }
     }
-
     lastSyncedAt = new Date().toISOString();
     await AsyncStorage.setItem(K_LAST_SYNC, lastSyncedAt);
     console.log(`[cloudSync] pullAllForUser complete — ${members.length} members synced`);
     return { error: null, members };
   } catch (e) {
     console.warn('[cloudSync] pullAllForUser threw:', e.message);
-    return { error: e };
+        return { error: e };
   } finally {
     syncing = false;
   }
 }
-
 // ====================================================================
 // MIGRATION — first-time upload of existing AsyncStorage data
 // ====================================================================

@@ -140,7 +140,17 @@ const [authStep, setAuthStep]   = useState('login');  // 'login' | 'otp'
       };
       setUser(bridgedUser);
       AsyncStorage.setItem('user', JSON.stringify(bridgedUser));
-pullAllForUser(supaUser.id).then(() => loadSavedData()).catch(() => {});
+pullAllForUser(supaUser.id)
+  .then((result) => {
+    if (result && result.error) {
+      console.warn('[App] pullAllForUser returned error:', result.error);
+    }
+    loadSavedData();
+  })
+  .catch((e) => {
+    console.warn('[App] pullAllForUser threw:', e?.message || String(e));
+    loadSavedData();
+  });
     }
   }, [supabaseSession]);
 

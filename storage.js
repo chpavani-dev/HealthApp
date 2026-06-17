@@ -301,7 +301,7 @@ export const METRIC_LABELS = {
   potassium:      'Potassium',
 };
 
-function canonicalToMetricId(canonicalName) {
+export function canonicalToMetricId(canonicalName) {
   if (!canonicalName) return null;
   const lookupKey = canonicalName.trim().toLowerCase();
   if (NAME_TO_METRIC_ID[lookupKey]) return NAME_TO_METRIC_ID[lookupKey];
@@ -507,7 +507,7 @@ export async function saveLabReportFromAI(parsed, memberId, overrides = {}) {
       const isAbnormal = ['low','high','critical_low','critical_high','abnormal'].includes(t.flag);
       await addTimelineEntry(metricId, t.value, reportDate, memberId, isAbnormal);
       valuesAdded += 1;
-    }
+    }f
   }
 
   const newlyTrackedMetrics = [];
