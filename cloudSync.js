@@ -509,8 +509,11 @@ async function pullTimelineForMember(memberId) {
       if (e?.date) byDate.set(e.date, e);
     }
     for (const e of remoteGrouped[metricId]) {
-      byDate.set(e.date, e);
+      const existing = byDate.get(e.date);
+      const isAbnormal = existing?.isAbnormal ?? false;
+      byDate.set(e.date, { ...e, isAbnormal });
     }
+   
     merged[metricId] = Array.from(byDate.values())
       .sort((a, b) => new Date(a.date) - new Date(b.date));
   }
