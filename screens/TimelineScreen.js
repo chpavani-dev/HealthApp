@@ -412,18 +412,7 @@ export default function TimelineScreen({ activeMember }) {
  async function loadTimelineData() {
     try {
       const stored = await getTimelineValues(memberId);
-      // DIAGNOSTIC ALERT — remove after fix
-      const _keys = Object.keys(stored);
-      let _total = 0, _abnormal = 0;
-      _keys.forEach(k => (stored[k] || []).forEach(dp => { _total++; if (dp.isAbnormal) _abnormal++; }));
-      const _firstKey = _keys[0];
-      const _firstPoint = _firstKey ? stored[_firstKey][0] : null;
-      Alert.alert('Timeline DEBUG',
-        `memberId: ${memberId}\nactiveMember: ${activeMember?.name || 'NULL'}\nMetrics: ${_keys.length}\nTotal pts: ${_total}\nAbnormal pts: ${_abnormal}\nFirst key: ${_firstKey || 'none'}\nFirst point: ${JSON.stringify(_firstPoint)}`);
-      const storedKeys = Object.keys(stored);
-
-   
-
+          const storedKeys = Object.keys(stored);
       const tieredResult = await getTieredTrackedMetrics(memberId);
       const tier1 = tieredResult.tier1 || [];
       const promotedIds = tieredResult.autoPromoted || [];

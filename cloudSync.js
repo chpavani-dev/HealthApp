@@ -19,7 +19,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabase';
-import { key, canonicalToMetricId } from './storage';
+import { key, canonicalToMetricId, addTrackedMetric, DEFAULT_TRACKED_METRICS } from './storage';
 
 // ====================================================================
 // State
@@ -458,6 +458,7 @@ async function pullReportsForMember(memberId) {
   const timelineKey = key('timeline', memberId);
   const timelineLocalRaw = await AsyncStorage.getItem(timelineKey);
   const timelineLocal = timelineLocalRaw ? JSON.parse(timelineLocalRaw) : {};
+ const metricsToTrack = new Set();
   for (const report of merged) {
     if (!Array.isArray(report.tests)) continue;
     const reportDate = report.date;
@@ -471,9 +472,14 @@ async function pullReportsForMember(memberId) {
       const filtered = timelineLocal[metricId].filter(e => e.date !== reportDate);
       timelineLocal[metricId] = [...filtered, { date: reportDate, value: t.value, isAbnormal }]
         .sort((a, b) => new Date(a.date) - new Date(b.date));
+      metricsToTrack.add(metricId);
     }
   }
   await AsyncStorage.setItem(timelineKey, JSON.stringify(timelineLocal));
+  // Auto-track derived metrics so they appear in Trends
+  for (const metricId of metricsToTrack) {
+    await addTrackedMetric(metricId, memberId);
+  }
 }
 async function pullPrescriptionsForMember(memberId) {
   const { data, error } = await supabase
